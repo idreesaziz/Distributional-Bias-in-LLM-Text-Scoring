@@ -63,8 +63,10 @@ def test_google_batch(samples):
         )
         inline_requests.append({
             "contents": [{"parts": [{"text": user_text}], "role": "user"}],
-            "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-            "generation_config": {"temperature": 0.0},
+            "config": {
+                "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+                "temperature": 0.0,
+            },
         })
 
     print(f"[Google] Submitting {len(inline_requests)} inline requests...")

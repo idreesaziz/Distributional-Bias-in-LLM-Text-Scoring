@@ -50,8 +50,10 @@ def _build_batch_requests(samples: list[dict]) -> list[dict]:
             "key": sample["id"],
             "request": {
                 "contents": [{"parts": [{"text": user_text}], "role": "user"}],
-                "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-                "generation_config": {"temperature": 0.0},
+                "config": {
+                    "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+                    "temperature": 0.0,
+                },
             },
         })
     return requests
