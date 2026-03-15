@@ -1,14 +1,10 @@
 """
-Dry-run test: send 3 samples to each model to verify the scoring pipeline works.
-
-Google:  Batch API (small inline batch)
-OpenAI:  Standard API (3 sequential calls)
+Dry-run test: send 3 samples to Google standard API to verify scoring works.
 """
 
 import json
 import os
 import sys
-import time
 
 from dotenv import load_dotenv
 
@@ -17,7 +13,7 @@ load_dotenv()
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from pathlib import Path
-from src.llm_scoring import parse_score, SYSTEM_PROMPT
+from src.llm_scoring import parse_score, SYSTEM_PROMPT, _call_with_retry
 
 
 def load_test_samples(n=3):
@@ -26,7 +22,6 @@ def load_test_samples(n=3):
     with open(deg_path, "r", encoding="utf-8") as f:
         samples = json.load(f)
 
-    # Pick one low, one mid, one high degradation
     by_level = {}
     for s in samples:
         lvl = s.get("level", 0)
@@ -42,100 +37,23 @@ def load_test_samples(n=3):
     return picks
 
 
-def test_google_batch(samples):
-    """Test Google Batch API with inline requests (no file upload needed)."""
-    from google import genai
-
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
+def test_google(samples, api_key=None):
+    """Test Google standard API with a few calls."""
+    key = api_key or os.environ.get("GOOGLE_API_KEY")
+    if not key:
         print("[SKIP] GOOGLE_API_KEY not set")
         return
 
-    client = genai.Client(api_key=api_key)
     model_id = "gemini-3-flash-preview"
+    print(f"[Google] Sending {len(samples)} requests to {model_id}...")
 
-    # Build inline requests
-    inline_requests = []
-    for sample in samples:
-        user_text = (
-            f"Please rate the quality of the following text:\n\n"
-            f"---\n{sample['degraded_text'][:500]}\n---"
-        )
-        inline_requests.append({
-            "contents": [{"parts": [{"text": user_text}], "role": "user"}],
-            "config": {
-                "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-                "temperature": 0.0,
-            },
-        })
-
-    print(f"[Google] Submitting {len(inline_requests)} inline requests...")
-    batch_job = client.batches.create(
-        model=model_id,
-        src=inline_requests,
-        config={"display_name": "test-scoring"},
-    )
-    print(f"[Google] Job created: {batch_job.name}")
-
-    # Poll
-    completed = {"JOB_STATE_SUCCEEDED", "JOB_STATE_FAILED",
-                 "JOB_STATE_CANCELLED", "JOB_STATE_EXPIRED"}
-    while True:
-        job = client.batches.get(name=batch_job.name)
-        state = job.state.name
-        if state in completed:
-            break
-        print(f"  [{state}] waiting 10s...")
-        time.sleep(10)
-
-    print(f"[Google] Final state: {state}")
-
-    if state == "JOB_STATE_SUCCEEDED":
-        if job.dest and job.dest.inlined_responses:
-            for i, resp in enumerate(job.dest.inlined_responses):
-                if resp.response:
-                    raw = resp.response.text
-                    score = parse_score(raw)
-                    lvl = samples[i].get("level", "?")
-                    axis = samples[i].get("axis", "?")
-                    print(f"  Sample {i+1} (axis={axis}, level={lvl}): "
-                          f"score={score}, raw='{raw.strip()}'")
-                elif resp.error:
-                    print(f"  Sample {i+1}: ERROR {resp.error}")
-        else:
-            print("  No inline responses found")
-    else:
-        print(f"  Error: {getattr(job, 'error', 'unknown')}")
-
-
-def test_openai(samples):
-    """Test OpenAI standard API with a few calls."""
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        print("[SKIP] OPENAI_API_KEY not set")
-        return
-
-    from openai import OpenAI
-    client = OpenAI(api_key=api_key)
-    model_id = "gpt-4.1-nano"
-
-    print(f"[OpenAI] Sending {len(samples)} requests...")
     for i, sample in enumerate(samples):
         user_prompt = (
             f"Please rate the quality of the following text:\n\n"
             f"---\n{sample['degraded_text'][:500]}\n---"
         )
         try:
-            resp = client.chat.completions.create(
-                model=model_id,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.0,
-                max_tokens=16,
-            )
-            raw = resp.choices[0].message.content
+            raw = _call_with_retry("google", model_id, user_prompt, api_key=key)
             score = parse_score(raw)
             lvl = sample.get("level", "?")
             axis = sample.get("axis", "?")
@@ -146,14 +64,18 @@ def test_openai(samples):
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--key", help="Google API key (or set GOOGLE_API_KEY)")
+    args = parser.parse_args()
+
     samples = load_test_samples(3)
     print(f"Loaded {len(samples)} test samples\n")
-
     for s in samples:
         print(f"  id={s['id']}, axis={s.get('axis','?')}, "
               f"level={s.get('level','?')}, "
               f"text_len={len(s['degraded_text'])}")
     print()
 
-    test_google_batch(samples)
+    test_google(samples, api_key=args.key)
     print("\nDone.")

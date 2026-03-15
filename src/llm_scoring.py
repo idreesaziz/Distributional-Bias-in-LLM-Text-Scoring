@@ -2,8 +2,9 @@
 Step 4 — LLM Scoring Module
 Sends degraded texts to LLMs for quality rating (0-10 scale).
 
-Google:  Batch API (50% cheaper, handles rate limits automatically)
-OpenAI:  Standard API with retry
+Standard API for both Google and OpenAI, with:
+  - Exponential backoff on rate-limit / transient errors
+  - JSONL checkpoint every 50 samples — resume from where you left off
 """
 
 import json
@@ -13,12 +14,14 @@ import time
 from pathlib import Path
 
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 load_dotenv()
 
 SYSTEM_PROMPT = "Rate the quality of the following text from 0 to 10. Respond with ONLY the number."
 
-POLL_INTERVAL = 30  # seconds between batch status checks
+CHECKPOINT_EVERY = 50
+MAX_RETRIES = 5
 
 
 # ── Response Parsing ─────────────────────────────────────────────
@@ -36,176 +39,14 @@ def parse_score(raw: str) -> int | None:
     return None
 
 
-# ── Google Batch API ─────────────────────────────────────────────
+# ── Checkpoint Helpers ───────────────────────────────────────────
 
-def _build_batch_requests(samples: list[dict]) -> list[dict]:
-    """Build list of GenerateContentRequest dicts for the Batch API."""
-    requests = []
-    for sample in samples:
-        user_text = (
-            f"Please rate the quality of the following text:\n\n"
-            f"---\n{sample['degraded_text']}\n---"
-        )
-        requests.append({
-            "key": sample["id"],
-            "request": {
-                "contents": [{"parts": [{"text": user_text}], "role": "user"}],
-                "config": {
-                    "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-                    "temperature": 0.0,
-                },
-            },
-        })
-    return requests
+def _checkpoint_path(output_dir: Path, model_name: str) -> Path:
+    safe = model_name.replace(" ", "_").replace("/", "_")
+    return output_dir / f"checkpoint_{safe}.jsonl"
 
 
-def _score_google_batch(samples: list[dict], model_cfg: dict,
-                        output_dir: Path) -> list[dict]:
-    """Score all samples via Google Batch API (JSONL file method)."""
-    from google import genai
-    from google.genai import types
-
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
-        raise RuntimeError("GOOGLE_API_KEY not set")
-
-    client = genai.Client(api_key=api_key)
-    model_id = model_cfg["model_id"]
-    model_name = model_cfg["name"]
-
-    # Check for existing batch job (resume support)
-    job_file = output_dir / f"batch_job_{model_name}.json"
-    if job_file.exists():
-        with open(job_file, "r") as f:
-            job_info = json.load(f)
-        job_name = job_info["name"]
-        print(f"  [Resume] Found existing batch job: {job_name}")
-    else:
-        # Build JSONL file
-        batch_requests = _build_batch_requests(samples)
-        jsonl_path = output_dir / f"batch_input_{model_name}.jsonl"
-        with open(jsonl_path, "w", encoding="utf-8") as f:
-            for req in batch_requests:
-                f.write(json.dumps(req, ensure_ascii=False) + "\n")
-
-        print(f"  [Upload] {len(batch_requests)} requests → {jsonl_path.name}")
-
-        # Upload file
-        uploaded = client.files.upload(
-            file=str(jsonl_path),
-            config=types.UploadFileConfig(
-                display_name=f"batch-{model_name}",
-                mime_type="jsonl",
-            ),
-        )
-        print(f"  [Upload] File uploaded: {uploaded.name}")
-
-        # Create batch job
-        batch_job = client.batches.create(
-            model=model_id,
-            src=uploaded.name,
-            config={"display_name": f"scoring-{model_name}"},
-        )
-        job_name = batch_job.name
-        print(f"  [Batch] Created job: {job_name}")
-
-        # Save job name for resume
-        with open(job_file, "w") as f:
-            json.dump({"name": job_name, "model": model_name,
-                       "num_requests": len(batch_requests)}, f)
-
-    # Poll until done
-    completed = {"JOB_STATE_SUCCEEDED", "JOB_STATE_FAILED",
-                 "JOB_STATE_CANCELLED", "JOB_STATE_EXPIRED"}
-
-    while True:
-        job = client.batches.get(name=job_name)
-        state = job.state.name
-        if state in completed:
-            break
-        print(f"  [Poll] {state} — waiting {POLL_INTERVAL}s...")
-        time.sleep(POLL_INTERVAL)
-
-    print(f"  [Batch] Finished: {state}")
-
-    if state != "JOB_STATE_SUCCEEDED":
-        raise RuntimeError(f"Batch job {state}: {getattr(job, 'error', 'unknown')}")
-
-    # Download results
-    results = []
-    if job.dest and job.dest.file_name:
-        raw_bytes = client.files.download(file=job.dest.file_name)
-        raw_text = raw_bytes.decode("utf-8")
-        for line in raw_text.splitlines():
-            if not line.strip():
-                continue
-            entry = json.loads(line)
-            sample_id = entry.get("key", "")
-            if "response" in entry and entry["response"]:
-                resp = entry["response"]
-                try:
-                    raw_response = resp["candidates"][0]["content"]["parts"][0]["text"]
-                except (KeyError, IndexError):
-                    raw_response = str(resp)
-                score = parse_score(raw_response)
-                results.append({
-                    "sample_id": sample_id,
-                    "model": model_name,
-                    "condition": "isolated",
-                    "repetition": 0,
-                    "score": score,
-                    "raw_response": raw_response,
-                    **({"parse_error": True} if score is None else {}),
-                })
-            else:
-                error_msg = str(entry.get("error", "unknown error"))
-                results.append({
-                    "sample_id": sample_id,
-                    "model": model_name,
-                    "condition": "isolated",
-                    "repetition": 0,
-                    "score": None,
-                    "raw_response": error_msg,
-                    "parse_error": True,
-                })
-    elif job.dest and job.dest.inlined_responses:
-        for resp in job.dest.inlined_responses:
-            if resp.response:
-                raw_response = resp.response.text
-                score = parse_score(raw_response)
-                results.append({
-                    "sample_id": "",
-                    "model": model_name,
-                    "condition": "isolated",
-                    "repetition": 0,
-                    "score": score,
-                    "raw_response": raw_response,
-                    **({"parse_error": True} if score is None else {}),
-                })
-
-    # Clean up job file and input JSONL
-    job_file.unlink(missing_ok=True)
-    (output_dir / f"batch_input_{model_name}.jsonl").unlink(missing_ok=True)
-
-    print(f"  [Done] {len(results)} results, "
-          f"{sum(1 for r in results if r['score'] is not None)} parsed OK")
-    return results
-
-
-# ── OpenAI Standard API ──────────────────────────────────────────
-
-def _score_openai(samples: list[dict], model_cfg: dict,
-                  output_dir: Path) -> list[dict]:
-    """Score all samples via OpenAI standard API with retry."""
-    from openai import OpenAI
-    from tqdm import tqdm
-
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    model_id = model_cfg["model_id"]
-    model_name = model_cfg["name"]
-
-    # Checkpoint for resume
-    ckpt_path = output_dir / f"checkpoint_{model_name}.jsonl"
+def _load_checkpoint(ckpt_path: Path) -> tuple[list[dict], set]:
     results = []
     done_ids = set()
     if ckpt_path.exists():
@@ -215,7 +56,76 @@ def _score_openai(samples: list[dict], model_cfg: dict,
                     entry = json.loads(line)
                     results.append(entry)
                     done_ids.add(entry["sample_id"])
-        print(f"  [Resume] {len(done_ids)} already scored")
+    return results, done_ids
+
+
+def _flush_checkpoint(ckpt_path: Path, buffer: list[dict]):
+    with open(ckpt_path, "a", encoding="utf-8") as f:
+        for entry in buffer:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+# ── API Call with Retry ──────────────────────────────────────────
+
+def _call_with_retry(provider: str, model_id: str, user_prompt: str,
+                     api_key: str | None = None) -> str:
+    """Call LLM with exponential backoff on transient errors."""
+    for attempt in range(MAX_RETRIES):
+        try:
+            if provider == "google":
+                from google import genai
+                client = genai.Client(api_key=api_key or os.environ["GOOGLE_API_KEY"])
+                response = client.models.generate_content(
+                    model=model_id,
+                    contents=user_prompt,
+                    config={
+                        "system_instruction": SYSTEM_PROMPT,
+                        "temperature": 0.0,
+                    },
+                )
+                return response.text
+            elif provider == "openai":
+                from openai import OpenAI
+                client = OpenAI(api_key=api_key or os.environ["OPENAI_API_KEY"])
+                response = client.chat.completions.create(
+                    model=model_id,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.0,
+                    max_tokens=16,
+                )
+                return response.choices[0].message.content
+        except Exception as e:
+            err = str(e).lower()
+            transient = any(k in err for k in
+                            ["429", "rate", "limit", "quota", "503",
+                             "overloaded", "timeout", "connection", "unavailable"])
+            if transient and attempt < MAX_RETRIES - 1:
+                wait = 2 ** attempt * 5  # 5s, 10s, 20s, 40s, 80s
+                print(f"\n  [Retry {attempt+1}/{MAX_RETRIES}] "
+                      f"{str(e)[:80]}... waiting {wait}s")
+                time.sleep(wait)
+            else:
+                raise
+    raise RuntimeError("All retries failed")
+
+
+# ── Score All Samples ────────────────────────────────────────────
+
+def _score_model(samples: list[dict], model_cfg: dict,
+                 output_dir: Path, api_key: str | None = None) -> list[dict]:
+    """Score all samples for one model. Checkpoints every 50."""
+    provider = model_cfg["provider"]
+    model_id = model_cfg["model_id"]
+    model_name = model_cfg["name"]
+
+    ckpt = _checkpoint_path(output_dir, model_name)
+    results, done_ids = _load_checkpoint(ckpt)
+
+    if done_ids:
+        print(f"  [Resume] {len(done_ids)} already scored, continuing...")
 
     remaining = [s for s in samples if s["id"] not in done_ids]
     buffer = []
@@ -227,63 +137,43 @@ def _score_openai(samples: list[dict], model_cfg: dict,
             f"---\n{sample['degraded_text']}\n---"
         )
 
-        raw_response = None
-        for attempt in range(5):
-            try:
-                resp = client.chat.completions.create(
-                    model=model_id,
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.0,
-                    max_tokens=16,
-                )
-                raw_response = resp.choices[0].message.content
-                break
-            except Exception as e:
-                err = str(e).lower()
-                transient = any(k in err for k in
-                                ["429", "rate", "limit", "timeout", "503"])
-                if transient and attempt < 4:
-                    wait = 2 ** attempt * 5
-                    print(f"\n  [Retry {attempt+1}/5] waiting {wait}s...")
-                    time.sleep(wait)
-                elif not transient:
-                    raw_response = str(e)
-                    break
+        try:
+            raw = _call_with_retry(provider, model_id, user_prompt,
+                                   api_key=api_key)
+            score = parse_score(raw)
+            entry = {
+                "sample_id": sample["id"],
+                "model": model_name,
+                "condition": "isolated",
+                "repetition": 0,
+                "score": score,
+                "raw_response": raw,
+                **({"parse_error": True} if score is None else {}),
+            }
+        except Exception as e:
+            entry = {
+                "sample_id": sample["id"],
+                "model": model_name,
+                "condition": "isolated",
+                "repetition": 0,
+                "score": None,
+                "raw_response": str(e),
+                "parse_error": True,
+            }
 
-        score = parse_score(raw_response) if raw_response else None
-        entry = {
-            "sample_id": sample["id"],
-            "model": model_name,
-            "condition": "isolated",
-            "repetition": 0,
-            "score": score,
-            "raw_response": raw_response or "all retries failed",
-            **({"parse_error": True} if score is None else {}),
-        }
         results.append(entry)
         buffer.append(entry)
 
-        if len(buffer) >= 50:
-            with open(ckpt_path, "a", encoding="utf-8") as f:
-                for e in buffer:
-                    f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        if len(buffer) >= CHECKPOINT_EVERY:
+            _flush_checkpoint(ckpt, buffer)
             buffer.clear()
 
         time.sleep(0.3)
 
-    # Flush
     if buffer:
-        with open(ckpt_path, "a", encoding="utf-8") as f:
-            for e in buffer:
-                f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        _flush_checkpoint(ckpt, buffer)
+        buffer.clear()
 
-    ckpt_path.unlink(missing_ok=True)
-
-    print(f"  [Done] {len(results)} results, "
-          f"{sum(1 for r in results if r['score'] is not None)} parsed OK")
     return results
 
 
@@ -308,20 +198,19 @@ def run(config: dict, samples: list[dict]) -> list[dict]:
         provider = model_cfg["provider"]
 
         print(f"[LLM Scoring] {model_name} ({provider})")
-
-        if provider == "google":
-            results = _score_google_batch(samples, model_cfg, output_dir)
-        elif provider == "openai":
-            results = _score_openai(samples, model_cfg, output_dir)
-        else:
-            print(f"  [SKIP] Unknown provider: {provider}")
-            continue
-
+        results = _score_model(samples, model_cfg, output_dir)
         all_results.extend(results)
 
     # Save final
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(all_results, f, indent=2, ensure_ascii=False)
     print(f"[LLM Scoring] Saved {len(all_results)} ratings to {output_file}")
+
+    # Clean up checkpoint files
+    for model_cfg in llm_cfg["models"]:
+        ckpt = _checkpoint_path(output_dir, model_cfg["name"])
+        if ckpt.exists():
+            ckpt.unlink()
+            print(f"  [Cleanup] Removed {ckpt.name}")
 
     return all_results
