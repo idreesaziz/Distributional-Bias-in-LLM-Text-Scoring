@@ -73,7 +73,7 @@ The corpus consists of 150 Wikipedia Featured Articles (FAs) — articles that h
 From the pool of all English Wikipedia FAs, the 150 shortest articles (by raw character count) are selected. This serves two purposes:
 
 - **Token economy**: Shorter texts reduce API costs without sacrificing quality diversity.
-- **Full-text integrity**: No truncation is applied ($\texttt{max\_chars} = 0$). Each article is used in its entirety, preserving the natural structure, argument flow, and coherence that FAs are scored on.
+- **Full-text integrity**: No truncation is applied (`max_chars = 0`). Each article is used in its entirety, preserving the natural structure, argument flow, and coherence that FAs are scored on.
 
 The resulting corpus spans approximately 7,500–22,500 characters per article, with articles stored as JSON records containing title, category, and full text.
 
@@ -99,7 +99,7 @@ At $\lambda = 0$, the original text is returned unchanged. As $\lambda$ increase
 
 Grammar degradation introduces surface-level mechanical errors while preserving meaning, vocabulary, and information content. It is implemented as a pipeline of nine independent sub-transformations, applied sequentially:
 
-$$\text{degrade\_grammar}(t, \lambda) = (f_9 \circ f_8 \circ \cdots \circ f_1)(t, \lambda)$$
+$$G(t, \lambda) = (f_9 \circ f_8 \circ \cdots \circ f_1)(t, \lambda)$$
 
 Each sub-transformation applies its errors stochastically, with individual error probabilities scaled by $\lambda$.
 
@@ -224,7 +224,7 @@ The bounded displacement ensures that at low $\lambda$, sentences drift only sli
 
 Information degradation progressively removes content from the text through a five-phase pipeline, targeting increasingly important linguistic constituents. Each phase is probability-gated by $\lambda$, and phases targeting more essential content activate only at higher degradation levels.
 
-$$\text{degrade\_information}(t, \lambda) = \text{clean}\!\left((g_5 \circ g_4 \circ g_3 \circ g_2 \circ g_1)(t, \lambda)\right)$$
+$$I(t, \lambda) = \operatorname{clean}\!\left((g_5 \circ g_4 \circ g_3 \circ g_2 \circ g_1)(t, \lambda)\right)$$
 
 #### Phase 1: Parenthetical Deletion
 
@@ -292,7 +292,7 @@ Synonym candidates are generated using pre-trained word embeddings (GloVe 840B 3
 
 The frequency threshold ensures that technical terms (e.g., *"mitochondria"*, *"topography"*) are never substituted — only general-vocabulary content words participate.
 
-Results are cached by $(w, \text{pos\_group})$ so each unique word is looked up exactly once across all 9,000 samples.
+Results are cached by $(w, p)$ where $p$ is the broad POS group, so each unique word is looked up exactly once across all 9,000 samples.
 
 #### Two-Pass Replacement Algorithm
 
@@ -317,7 +317,7 @@ Scanning left to right through content-word positions:
 3. Skip if the canonical word already appears elsewhere in the same sentence (prevents awkward repetition within a sentence)
 4. With probability $\lambda$, replace $w$ with $\text{canonical}(w)$, inflected to match the original word's morphology
 
-$$P(\text{replace } w_i) = \lambda$$
+$$P(\textrm{replace } w_i) = \lambda$$
 
 There is no hard ceiling — the replacement probability scales linearly with $\lambda$, guaranteeing a smooth gradient across severity levels.
 
@@ -385,7 +385,9 @@ Gemini 3 Flash uses `thinking_level="minimal"` to reduce reasoning overhead whil
 
 The raw LLM response is parsed by extracting the first integer match 0–10 via:
 
-$$\texttt{re.search(r'\textbackslash b(10|\textbackslash d)\textbackslash b',\ \text{response})}$$
+```
+re.search(r'\b(10|\d)\b', response)
+```
 
 If parsing fails (empty response, non-numeric output), the sample is retried up to 5 times with exponential backoff.
 
