@@ -224,7 +224,7 @@ The bounded displacement ensures that at low $\lambda$, sentences drift only sli
 
 Information degradation progressively removes content from the text through a five-phase pipeline, targeting increasingly important linguistic constituents. Each phase is probability-gated by $\lambda$, and phases targeting more essential content activate only at higher degradation levels.
 
-$$I(t, \lambda) = \operatorname{clean}\!\left((g_5 \circ g_4 \circ g_3 \circ g_2 \circ g_1)(t, \lambda)\right)$$
+$$I(t, \lambda) = \mathrm{clean}\!\left((g_5 \circ g_4 \circ g_3 \circ g_2 \circ g_1)(t, \lambda)\right)$$
 
 #### Phase 1: Parenthetical Deletion
 
@@ -328,11 +328,11 @@ When replacing a word, its surface morphology must be preserved. The function `_
 | Tag | Transformation |
 |-----|---------------|
 | NN, JJ, RB | Identity (base form) |
-| NNS | Pluralize ($+$s) |
-| VBD | Past tense (irregular table or $+$ed, with consonant doubling) |
-| VBN | Past participle (irregular table or $+$ed) |
-| VBG | Progressive ($-$e$+$ing, with consonant doubling) |
-| VBZ | Third person ($+$s or $+$es) |
+| NNS | Pluralize (+s) |
+| VBD | Past tense (irregular table or +ed, with consonant doubling) |
+| VBN | Past participle (irregular table or +ed) |
+| VBG | Progressive (−e+ing, with consonant doubling) |
+| VBZ | Third person (+s or +es) |
 
 Irregular past tenses and participles are handled via lookup tables (~50 common irregular verbs). Consonant doubling follows the standard English rule: double the final consonant if the word has one vowel group, ends in a consonant (not w, x, y), and the penultimate character is a vowel.
 
