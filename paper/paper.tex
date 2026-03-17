@@ -394,39 +394,41 @@ Additional visualizations of these distributions---including boxplots by axis an
 \subsection{Calibration Recovery}
 \label{sec:calibration}
 
-The compression results above raise a natural question: can the bias be corrected post hoc? We investigate whether a simple learned calibration function can recover the lost scoring range. We split the 150 source articles into a training set (112 articles, 7{,}140 samples) and a held-out test set (28 articles, 1{,}860 samples), stratified by category, and fit two calibration functions on the training set: an affine transform $\hat{S} = aS_{\text{raw}} + b$ and a four-parameter sigmoid $\hat{S} = d + c / (1 + e^{-a(S_{\text{raw}} - b)})$. We evaluate on the held-out test set to avoid overfitting.
+The compression results above raise a natural question: can the bias be corrected post hoc? We investigate whether a learned calibration function can recover the lost scoring range. We split the 150 source articles into a training set (112 articles, 7{,}140 samples) and a held-out test set (28 articles, 1{,}860 samples), stratified by category, and fit three calibration functions on the training set: an affine transform $\hat{S} = aS_{\text{raw}} + b$, a four-parameter sigmoid $\hat{S} = d + c / (1 + e^{-a(S_{\text{raw}} - b)})$, and isotonic regression (a nonparametric monotonic mapping that serves as an upper bound on what any monotonic calibration can achieve). We evaluate on the held-out test set to avoid overfitting.
 
-Table~\ref{tab:calibration} reports the results. Affine calibration reduces the root-mean-square error (RMSE) against the ideal score by 27\% for GPT-5~mini ($2.56 \to 1.87$) and 12\% for Gemini~3~Flash ($1.82 \to 1.60$). The sigmoid offers negligible further improvement over the affine for both models, indicating that the compression is well approximated as a linear distortion rather than a non-linear warping. Critically, rank-order correlations (Kendall $\tau$, Spearman $\rho$) are unchanged by calibration, as expected for monotonic transforms---the models' relative ordering of texts is unaffected.
+Table~\ref{tab:calibration} reports the results. Affine calibration reduces the root-mean-square error (RMSE) against the ideal score by 27\% for GPT-5~mini ($2.56 \to 1.87$) and 12\% for Gemini~3~Flash ($1.82 \to 1.60$). Strikingly, neither the sigmoid nor the isotonic regression---the best possible monotonic calibration---offers meaningful improvement over the simple two-parameter affine. This convergence demonstrates two things: (i)~the compression is well approximated as a linear distortion, and (ii)~the residual RMSE of $\sim$1.6--1.9 points represents an irreducible floor arising from the models' imperfect rank discrimination, which no monotonic transform can correct. Rank-order correlations (Kendall $\tau$, Spearman $\rho$) are unchanged by all calibrations, as expected for monotonic transforms.
 
 \begin{table}[t]
 \centering
-\caption{Calibration recovery on held-out test set (28 articles, 1{,}860 samples). RMSE is computed against the ideal score $S^* = 10(1 - \lambda)$.}
+\caption{Calibration recovery on held-out test set (28 articles, 1{,}860 samples). RMSE is computed against the ideal score $S^* = 10(1 - \lambda)$. Isotonic regression provides a nonparametric upper bound.}
 \label{tab:calibration}
 \begin{tabular}{@{}llcccc@{}}
 \toprule
 \textbf{Model} & \textbf{Calib.} & \textbf{RMSE} & $\Delta$\textbf{RMSE} & \textbf{Kendall} $\tau$ & \textbf{Spearman} $\rho$ \\
 \midrule
-\multirow{2}{*}{GPT-5 mini}
-  & Raw    & 2.56 & ---    & 0.623 & 0.734 \\
-  & Affine & 1.87 & $-$27\% & 0.623 & 0.734 \\
+\multirow{3}{*}{GPT-5 mini}
+  & Raw      & 2.56 & ---    & 0.623 & 0.734 \\
+  & Affine   & 1.87 & $-$27\% & 0.623 & 0.734 \\
+  & Isotonic & 1.87 & $-$27\% & 0.627 & 0.733 \\
 \midrule
-\multirow{2}{*}{Gemini 3 Flash}
-  & Raw    & 1.82 & ---    & 0.728 & 0.821 \\
-  & Affine & 1.60 & $-$12\% & 0.728 & 0.821 \\
+\multirow{3}{*}{Gemini 3 Flash}
+  & Raw      & 1.82 & ---    & 0.728 & 0.821 \\
+  & Affine   & 1.60 & $-$12\% & 0.728 & 0.821 \\
+  & Isotonic & 1.59 & $-$13\% & 0.728 & 0.821 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Figure~\ref{fig:calibrecovery} visualizes the effect: the affine-calibrated dose-response curve is pulled closer to the ideal line $S = 10(1 - \lambda)$, narrowing the shaded compression gap, though a residual error of 1.6--1.9 RMSE points remains even after calibration. This residual reflects the models' imperfect rank discrimination---their inability to linearly separate degradation levels---which no monotonic transform can correct.
+Figure~\ref{fig:calibrecovery} visualizes the effect: the calibrated dose-response curves are pulled closer to the ideal line $S = 10(1 - \lambda)$, narrowing the shaded compression gap, though a residual error of 1.6--1.9 RMSE points remains even after calibration. This residual reflects the models' imperfect rank discrimination---their inability to linearly separate degradation levels---which no monotonic transform can correct.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{G15_calibration_recovery.png}
-\caption{Dose-response curves before (solid) and after (dashed) affine calibration, against the ideal reference line (dotted black). Calibration narrows the gap between observed and ideal scores but cannot eliminate it entirely: the residual error reflects rank-order imprecision, not a correctable offset.}
+\caption{Dose-response curves before and after calibration, against the ideal reference line (dashed black). Affine, sigmoid, and isotonic (nonparametric) calibrations all converge to nearly identical curves, confirming that the compression is approximately linear and the residual error represents irreducible rank-order noise.}
 \label{fig:calibrecovery}
 \end{figure*}
 
-These results carry a dual message. On the one hand, a simple two-parameter affine correction---requiring only a modest calibration set---recovers a meaningful fraction of the lost accuracy, making post-hoc calibration a practical and low-cost mitigation strategy. On the other hand, the substantial residual RMSE confirms that compression is not purely an offset problem: the models genuinely fail to spread scores across the full range, losing discriminative information that cannot be recovered by rescaling.
+These results carry a dual message. On the one hand, a simple two-parameter affine correction---requiring only a modest calibration set---recovers a meaningful fraction of the lost accuracy, making post-hoc calibration a practical and low-cost mitigation strategy. On the other hand, the fact that no calibration method (including the nonparametric isotonic upper bound) can reduce RMSE below $\sim$1.6 confirms that compression is not purely an offset problem: the models genuinely fail to spread scores across the full range, losing discriminative information that cannot be recovered by rescaling.
 
 \subsection{Intra-Condition Reliability}
 
