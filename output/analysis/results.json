@@ -1,0 +1,926 @@
+{
+  "T1": {
+    "GPT-5 mini": {
+      "n": 9000,
+      "mean": 4.322444444444445,
+      "std": 2.4626167361706823,
+      "min": 1,
+      "max": 9,
+      "skewness": 0.5690593744560745,
+      "kurtosis": -1.0359929804289931,
+      "distribution": {
+        "0": 0,
+        "1": 476,
+        "2": 2424,
+        "3": 1557,
+        "4": 1108,
+        "5": 573,
+        "6": 685,
+        "7": 536,
+        "8": 1021,
+        "9": 620,
+        "10": 0
+      }
+    },
+    "Gemini 3 Flash": {
+      "n": 9000,
+      "mean": 5.211555555555556,
+      "std": 2.152978132134898,
+      "min": 2,
+      "max": 9,
+      "skewness": 0.4313327506516979,
+      "kurtosis": -1.2038270800290132,
+      "distribution": {
+        "0": 0,
+        "1": 0,
+        "2": 468,
+        "3": 1610,
+        "4": 2950,
+        "5": 269,
+        "6": 885,
+        "7": 647,
+        "8": 1385,
+        "9": 786,
+        "10": 0
+      }
+    }
+  },
+  "T2": {
+    "GPT-5 mini": {
+      "count_0": 0,
+      "count_1": 476,
+      "count_9": 620,
+      "count_10": 0,
+      "simulated_mean_0s": 542.2,
+      "simulated_mean_10s": 121.5
+    },
+    "Gemini 3 Flash": {
+      "count_0": 0,
+      "count_1": 0,
+      "count_9": 786,
+      "count_10": 0,
+      "simulated_mean_0s": 73.25,
+      "simulated_mean_10s": 146.91
+    }
+  },
+  "T3": {
+    "GPT-5 mini": {
+      "mean_at_0.0": 7.992222222222222,
+      "mean_at_0.8": 2.511111111111111,
+      "observed_range": 5.481111111111111,
+      "ideal_range": 8.0,
+      "compression_ratio": 0.6851388888888889,
+      "ceiling_ratio": 0.7992222222222222,
+      "floor_absolute": 2.511111111111111
+    },
+    "Gemini 3 Flash": {
+      "mean_at_0.0": 8.291666666666666,
+      "mean_at_0.8": 3.3227777777777776,
+      "observed_range": 4.9688888888888885,
+      "ideal_range": 8.0,
+      "compression_ratio": 0.6211111111111111,
+      "ceiling_ratio": 0.8291666666666666,
+      "floor_absolute": 3.3227777777777776
+    }
+  },
+  "T4": {
+    "GPT-5 mini": {
+      "point_estimate": 0.6845238095238095,
+      "ci_95_lo": 0.6675967261904762,
+      "ci_95_hi": 0.7002604166666666,
+      "excludes_1": true
+    },
+    "Gemini 3 Flash": {
+      "point_estimate": 0.6196800595238094,
+      "ci_95_lo": 0.6032728794642855,
+      "ci_95_hi": 0.6344131324404763,
+      "excludes_1": true
+    }
+  },
+  "T5": {
+    "GPT-5 mini": {
+      "grammar": {
+        "slope": -6.816666666666674,
+        "intercept": 6.1586666666666705,
+        "r_squared": 0.6295340632793872,
+        "p_value": 0.0,
+        "stderr": 0.11029058189852835
+      },
+      "coherence": {
+        "slope": -4.77666666666667,
+        "intercept": 7.652000000000001,
+        "r_squared": 0.47394828385257537,
+        "p_value": 0.0,
+        "stderr": 0.10613913051133339
+      },
+      "information": {
+        "slope": -7.865555555555553,
+        "intercept": 7.015111111111111,
+        "r_squared": 0.7760141816405199,
+        "p_value": 0.0,
+        "stderr": 0.08912646496015472
+      },
+      "lexical": {
+        "slope": -6.383333333333337,
+        "intercept": 6.80088888888889,
+        "r_squared": 0.638716254258767,
+        "p_value": 0.0,
+        "stderr": 0.10125572729525875
+      }
+    },
+    "Gemini 3 Flash": {
+      "grammar": {
+        "slope": -6.814444444444445,
+        "intercept": 7.285777777777778,
+        "r_squared": 0.7624787962084537,
+        "p_value": 0.0,
+        "stderr": 0.0802175898118027
+      },
+      "coherence": {
+        "slope": -5.580000000000005,
+        "intercept": 7.720444444444446,
+        "r_squared": 0.5805299515250689,
+        "p_value": 0.0,
+        "stderr": 0.10004012090020697
+      },
+      "information": {
+        "slope": -7.054444444444448,
+        "intercept": 8.025333333333336,
+        "r_squared": 0.7908461393098339,
+        "p_value": 0.0,
+        "stderr": 0.07651588530387346
+      },
+      "lexical": {
+        "slope": -5.255555555555558,
+        "intercept": 7.696444444444445,
+        "r_squared": 0.5981041406806694,
+        "p_value": 0.0,
+        "stderr": 0.09086336979485067
+      }
+    }
+  },
+  "T6": {
+    "GPT-5 mini": {
+      "grammar": {
+        "f_stat": 3555.5419985201997,
+        "p_value": 0.0,
+        "quadratic_coef": 17.297619047618994,
+        "significant": true
+      },
+      "coherence": {
+        "f_stat": 110.25892344242354,
+        "p_value": 0.0,
+        "quadratic_coef": 4.599206349206315,
+        "significant": true
+      },
+      "information": {
+        "f_stat": 1640.0365761431244,
+        "p_value": 0.0,
+        "quadratic_coef": 11.599206349206307,
+        "significant": true
+      },
+      "lexical": {
+        "f_stat": 1334.9181533916094,
+        "p_value": 0.0,
+        "quadratic_coef": 12.384920634920597,
+        "significant": true
+      }
+    },
+    "Gemini 3 Flash": {
+      "grammar": {
+        "f_stat": 1757.1086656728176,
+        "p_value": 0.0,
+        "quadratic_coef": 10.646825396825358,
+        "significant": true
+      },
+      "coherence": {
+        "f_stat": 463.1176798095107,
+        "p_value": 0.0,
+        "quadratic_coef": 8.28571428571425,
+        "significant": true
+      },
+      "information": {
+        "f_stat": 192.4119528552351,
+        "p_value": 0.0,
+        "quadratic_coef": 4.305555555555517,
+        "significant": true
+      },
+      "lexical": {
+        "f_stat": 381.61228788326196,
+        "p_value": 0.0,
+        "quadratic_coef": 6.936507936507899,
+        "significant": true
+      }
+    }
+  },
+  "T7": {
+    "GPT-5 mini": {
+      "grammar": {
+        "tau": -0.7328831155614832,
+        "p_value": 0.0
+      },
+      "coherence": {
+        "tau": -0.5683943711678036,
+        "p_value": 7.906072656045715e-262
+      },
+      "information": {
+        "tau": -0.8274822431145111,
+        "p_value": 0.0
+      },
+      "lexical": {
+        "tau": -0.6754698394368557,
+        "p_value": 0.0
+      }
+    },
+    "Gemini 3 Flash": {
+      "grammar": {
+        "tau": -0.8175642272485983,
+        "p_value": 0.0
+      },
+      "coherence": {
+        "tau": -0.6361100004946089,
+        "p_value": 7.524199460339354e-306
+      },
+      "information": {
+        "tau": -0.8179591928308617,
+        "p_value": 0.0
+      },
+      "lexical": {
+        "tau": -0.6607809769206587,
+        "p_value": 0.0
+      }
+    }
+  },
+  "T8": {
+    "fixed_effects": {
+      "Intercept": {
+        "coef": 7.638202654336737,
+        "se": 0.07517664863674595,
+        "z": 101.60339404386836,
+        "p": 0.0
+      },
+      "C(axis)[T.grammar]": {
+        "coef": -1.4933333333332741,
+        "se": 0.05952432135397934,
+        "z": -25.08778427649291,
+        "p": 6.760609276196784e-139
+      },
+      "C(axis)[T.information]": {
+        "coef": -0.6368888888888199,
+        "se": 0.05952432135397933,
+        "z": -10.699641329824964,
+        "p": 1.0217293000780334e-26
+      },
+      "C(axis)[T.lexical]": {
+        "coef": -0.8511111111110458,
+        "se": 0.05952432135397934,
+        "z": -14.298543717107782,
+        "p": 2.234363097929917e-46
+      },
+      "C(model)[T.Gemini 3 Flash]": {
+        "coef": 0.06844444444454895,
+        "se": 0.05952432135397909,
+        "z": 1.1498567793410646,
+        "p": 0.2502028647884018
+      },
+      "C(axis)[T.grammar]:C(model)[T.Gemini 3 Flash]": {
+        "coef": 1.0586666666665376,
+        "se": 0.08418010254985174,
+        "z": 12.57621022782185,
+        "p": 2.853959942852995e-36
+      },
+      "C(axis)[T.information]:C(model)[T.Gemini 3 Flash]": {
+        "coef": 0.9417777777776387,
+        "se": 0.08418010254985178,
+        "z": 11.187653011231653,
+        "p": 4.686751584433587e-29
+      },
+      "C(axis)[T.lexical]:C(model)[T.Gemini 3 Flash]": {
+        "coef": 0.8271111111109685,
+        "se": 0.08418010254985178,
+        "z": 9.825494220812455,
+        "p": 8.74440512681892e-23
+      },
+      "level": {
+        "coef": -4.7631535964806675,
+        "se": 0.10446842626588945,
+        "z": -45.59419306611983,
+        "p": 0.0
+      },
+      "level:C(axis)[T.grammar]": {
+        "coef": -2.0400000000001057,
+        "se": 0.12150351216891925,
+        "z": -16.789638123085798,
+        "p": 2.906114314295833e-63
+      },
+      "level:C(axis)[T.information]": {
+        "coef": -3.0888888888890143,
+        "se": 0.12150351216891925,
+        "z": -25.42221894454139,
+        "p": 1.4326400233905868e-142
+      },
+      "level:C(axis)[T.lexical]": {
+        "coef": -1.606666666666781,
+        "se": 0.12150351216891928,
+        "z": -13.223211724391355,
+        "p": 6.445195291091467e-40
+      },
+      "level:C(model)[T.Gemini 3 Flash]": {
+        "coef": -0.8033333333334941,
+        "se": 0.12150351216891965,
+        "z": -6.61160586219651,
+        "p": 3.8017309827124176e-11
+      },
+      "level:C(axis)[T.grammar]:C(model)[T.Gemini 3 Flash]": {
+        "coef": 0.8055555555557548,
+        "se": 0.17183191478525095,
+        "z": 4.68804387451835,
+        "p": 2.7582889134153145e-06
+      },
+      "level:C(axis)[T.information]:C(model)[T.Gemini 3 Flash]": {
+        "coef": 1.6144444444446626,
+        "se": 0.17183191478525106,
+        "z": 9.395486551275026,
+        "p": 5.695397590300145e-21
+      },
+      "level:C(axis)[T.lexical]:C(model)[T.Gemini 3 Flash]": {
+        "coef": 1.931111111111335,
+        "se": 0.17183191478525106,
+        "z": 11.2383727640163,
+        "p": 2.642074544589314e-29
+      }
+    },
+    "random_effects": {
+      "group_var": 0.5422721065212085,
+      "slope_var": 0.4911409022986053
+    },
+    "re_type": "random intercept + slope",
+    "converged": true,
+    "aic": NaN,
+    "bic": NaN
+  },
+  "T9": {
+    "GPT-5 mini": {
+      "grammar_vs_coherence": {
+        "U": 1049705.0,
+        "p": 1.8267646055341805e-259,
+        "cliffs_delta": -0.5853017283950618
+      },
+      "grammar_vs_information": {
+        "U": 2286497.0,
+        "p": 5.663373750905639e-09,
+        "cliffs_delta": -0.09669254320987654
+      },
+      "grammar_vs_lexical": {
+        "U": 1765526.0,
+        "p": 4.205390337864765e-73,
+        "cliffs_delta": -0.30250824691358025
+      },
+      "coherence_vs_information": {
+        "U": 3708163.0,
+        "p": 2.1695332241148328e-163,
+        "cliffs_delta": 0.4649532839506173
+      },
+      "coherence_vs_lexical": {
+        "U": 3571520.5,
+        "p": 1.7956403972372761e-128,
+        "cliffs_delta": 0.41097106172839504
+      },
+      "information_vs_lexical": {
+        "U": 2121032.0,
+        "p": 8.41726038043169e-22,
+        "cliffs_delta": -0.16206143209876545
+      }
+    },
+    "Gemini 3 Flash": {
+      "grammar_vs_coherence": {
+        "U": 1787857.0,
+        "p": 9.519679017566316e-69,
+        "cliffs_delta": -0.2936861234567901
+      },
+      "grammar_vs_information": {
+        "U": 2104747.0,
+        "p": 1.834898916305224e-23,
+        "cliffs_delta": -0.168495012345679
+      },
+      "grammar_vs_lexical": {
+        "U": 1681390.5,
+        "p": 1.853064917413058e-88,
+        "cliffs_delta": -0.33574696296296297
+      },
+      "coherence_vs_information": {
+        "U": 2822162.0,
+        "p": 7.152379940869252e-12,
+        "cliffs_delta": 0.1149281975308642
+      },
+      "coherence_vs_lexical": {
+        "U": 2411795.5,
+        "p": 0.00433466350133254,
+        "cliffs_delta": -0.0471919012345679
+      },
+      "information_vs_lexical": {
+        "U": 2161907.5,
+        "p": 4.605841629171269e-18,
+        "cliffs_delta": -0.1459130864197531
+      }
+    }
+  },
+  "T10": {
+    "GPT-5 mini": {
+      "statistic": 136.6291270414789,
+      "p_value": 1.5981138928760454e-113,
+      "variances_by_level": {
+        "level_0.0": 1.0205064542029523,
+        "level_0.2": 3.219332962757087,
+        "level_0.4": 2.397345438824038,
+        "level_0.6": 2.0381495892779937,
+        "level_0.8": 1.753072694706936
+      }
+    },
+    "Gemini 3 Flash": {
+      "statistic": 183.6413434787277,
+      "p_value": 1.5928996005008533e-151,
+      "variances_by_level": {
+        "level_0.0": 0.7659116175653141,
+        "level_0.2": 2.374316286826015,
+        "level_0.4": 1.5682477919832005,
+        "level_0.6": 0.9569387313939841,
+        "level_0.8": 0.9735776048421962
+      }
+    }
+  },
+  "T11": {
+    "pearson_r": 0.8364936107052884,
+    "pearson_p": 0.0,
+    "spearman_r": 0.817113671683062,
+    "spearman_p": 0.0
+  },
+  "T12": {
+    "wilcoxon_stat": 3541953.5,
+    "p_value": 0.0,
+    "rank_biserial_r": 0.705288007165373,
+    "median_diff": 1.0,
+    "mean_diff": 0.8891111111111111
+  },
+  "T13": {
+    "grammar": {
+      "wilcoxon_stat": 44574.0,
+      "p_value": 1.8804599920125282e-275,
+      "rank_biserial_r": 0.9433135514491137,
+      "median_diff": 1.0
+    },
+    "coherence": {
+      "wilcoxon_stat": 411155.5,
+      "p_value": 5.799415695260103e-18,
+      "rank_biserial_r": 0.25068774882201084,
+      "median_diff": 0.0
+    },
+    "information": {
+      "wilcoxon_stat": 54107.0,
+      "p_value": 3.292082441530232e-283,
+      "rank_biserial_r": 0.9386674420094072,
+      "median_diff": 1.0
+    },
+    "lexical": {
+      "wilcoxon_stat": 52701.0,
+      "p_value": 5.634609613903909e-268,
+      "rank_biserial_r": 0.9350453349076632,
+      "median_diff": 1.0
+    }
+  },
+  "T14": {
+    "GPT-5 mini": {
+      "overall_icc": 0.9255497759158308,
+      "mean_cv": 0.14770952378145824,
+      "icc_by_axis": {
+        "grammar": 0.9627450542236683,
+        "coherence": 0.8497480671542028,
+        "information": 0.9254253245157248,
+        "lexical": 0.8966577046396611
+      },
+      "cv_by_axis": {
+        "grammar": 0.1406367164425308,
+        "coherence": 0.1274282074878144,
+        "information": 0.173280395211093,
+        "lexical": 0.14949277598439484
+      },
+      "icc_by_level": {
+        "0.0": 0.794308347422119,
+        "0.2": 0.7388372572963607,
+        "0.4": 0.7785823386994012,
+        "0.6": 0.8222725867504297,
+        "0.8": 0.8252395615152357
+      },
+      "cv_by_level": {
+        "0.0": 0.042299896336451995,
+        "0.2": 0.16929559957963503,
+        "0.4": 0.1712598918474454,
+        "0.6": 0.1610447247579372,
+        "0.8": 0.1946475063858217
+      }
+    },
+    "Gemini 3 Flash": {
+      "overall_icc": 0.9049022170063205,
+      "mean_cv": 0.0937800899636963,
+      "icc_by_axis": {
+        "grammar": 0.9495023339529856,
+        "coherence": 0.8442363958698369,
+        "information": 0.9129816041549168,
+        "lexical": 0.8901114453562007
+      },
+      "cv_by_axis": {
+        "grammar": 0.0862683418415036,
+        "coherence": 0.10644302575572427,
+        "information": 0.10473764869658798,
+        "lexical": 0.0776713435609693
+      },
+      "icc_by_level": {
+        "0.0": 0.9885352006892134,
+        "0.2": 0.595428903233102,
+        "0.4": 0.5964679666419358,
+        "0.6": 0.6834778628598284,
+        "0.8": 0.7231040152661786
+      },
+      "cv_by_level": {
+        "0.0": 0.00200131529567399,
+        "0.2": 0.13058554894524085,
+        "0.4": 0.12188075234941165,
+        "0.6": 0.10596032234601167,
+        "0.8": 0.10847251088214331
+      }
+    }
+  },
+  "T15": {
+    "GPT-5 mini": {
+      "length_coef": -0.058429762799666496,
+      "p_value": 0.20913493756548107,
+      "significant": false
+    },
+    "Gemini 3 Flash": {
+      "length_coef": -0.1513735418840212,
+      "p_value": 0.0017808051667651662,
+      "significant": true
+    }
+  },
+  "T16": {
+    "GPT-5 mini": {
+      "H_statistic": 202.62207704733137,
+      "p_value": 1.0258822280432648e-42,
+      "n_categories": 5,
+      "category_means": {
+        "Arts & Culture": 7.844444444444444,
+        "Business & Economy": 7.852777777777778,
+        "Health": 8.25,
+        "Politics & Society": 7.5777777777777775,
+        "Science & Technology": 8.436111111111112
+      }
+    },
+    "Gemini 3 Flash": {
+      "H_statistic": 377.08857682037257,
+      "p_value": 2.4772318282580187e-80,
+      "n_categories": 5,
+      "category_means": {
+        "Arts & Culture": 8.311111111111112,
+        "Business & Economy": 7.936111111111111,
+        "Health": 8.597222222222221,
+        "Politics & Society": 7.8805555555555555,
+        "Science & Technology": 8.733333333333333
+      }
+    }
+  },
+  "T17": {
+    "GPT-5 mini_0v08": {
+      "cliffs_delta": 0.9864697530864197,
+      "cohens_d": 4.654395906922069
+    },
+    "Gemini 3 Flash_0v08": {
+      "cliffs_delta": 0.9835462962962963,
+      "cohens_d": 5.327990136052098
+    },
+    "inter_model_level_0.0": {
+      "rank_biserial_r": 0.49104761904761907,
+      "cohens_d": 0.3168397822649864,
+      "p": 8.474659272962817e-41
+    },
+    "inter_model_level_0.2": {
+      "rank_biserial_r": 0.7914063417006221,
+      "cohens_d": 0.8082337589777563,
+      "p": 7.76025347770587e-164
+    },
+    "inter_model_level_0.4": {
+      "rank_biserial_r": 0.695642817829313,
+      "cohens_d": 0.7717155669949586,
+      "p": 4.0023897449999584e-129
+    },
+    "inter_model_level_0.6": {
+      "rank_biserial_r": 0.6888219723853705,
+      "cohens_d": 0.7322713509217214,
+      "p": 6.24954814601717e-127
+    },
+    "inter_model_level_0.8": {
+      "rank_biserial_r": 0.7349115927514523,
+      "cohens_d": 0.6951491365226797,
+      "p": 1.1589606992089203e-138
+    }
+  },
+  "T18": [
+    {
+      "test": "T5",
+      "label": "GPT-5 mini_grammar",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T5",
+      "label": "GPT-5 mini_coherence",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T5",
+      "label": "GPT-5 mini_information",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T5",
+      "label": "GPT-5 mini_lexical",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T5",
+      "label": "Gemini 3 Flash_grammar",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T5",
+      "label": "Gemini 3 Flash_coherence",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T5",
+      "label": "Gemini 3 Flash_information",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T5",
+      "label": "Gemini 3 Flash_lexical",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T6",
+      "label": "GPT-5 mini_grammar",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T6",
+      "label": "GPT-5 mini_coherence",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T6",
+      "label": "GPT-5 mini_information",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T6",
+      "label": "GPT-5 mini_lexical",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T6",
+      "label": "Gemini 3 Flash_grammar",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T6",
+      "label": "Gemini 3 Flash_coherence",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T6",
+      "label": "Gemini 3 Flash_information",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T6",
+      "label": "Gemini 3 Flash_lexical",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T7",
+      "label": "GPT-5 mini_grammar",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T7",
+      "label": "GPT-5 mini_information",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T7",
+      "label": "GPT-5 mini_lexical",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T7",
+      "label": "Gemini 3 Flash_grammar",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T7",
+      "label": "Gemini 3 Flash_information",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T7",
+      "label": "Gemini 3 Flash_lexical",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T11",
+      "label": "pearson",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T11",
+      "label": "spearman",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T12",
+      "label": "overall",
+      "raw_p": 0.0,
+      "bh_adjusted_p": 0.0
+    },
+    {
+      "test": "T7",
+      "label": "Gemini 3 Flash_coherence",
+      "raw_p": 7.524199460339354e-306,
+      "bh_adjusted_p": 1.418022205987032e-305
+    },
+    {
+      "test": "T13",
+      "label": "information",
+      "raw_p": 3.292082441530232e-283,
+      "bh_adjusted_p": 5.974519986480792e-283
+    },
+    {
+      "test": "T13",
+      "label": "grammar",
+      "raw_p": 1.8804599920125282e-275,
+      "bh_adjusted_p": 3.2908049860219244e-275
+    },
+    {
+      "test": "T13",
+      "label": "lexical",
+      "raw_p": 5.634609613903909e-268,
+      "bh_adjusted_p": 9.520547278665226e-268
+    },
+    {
+      "test": "T7",
+      "label": "GPT-5 mini_coherence",
+      "raw_p": 7.906072656045715e-262,
+      "bh_adjusted_p": 1.2913252004874668e-261
+    },
+    {
+      "test": "T9",
+      "label": "GPT-5 mini_grammar_vs_coherence",
+      "raw_p": 1.8267646055341805e-259,
+      "bh_adjusted_p": 2.8874666345540276e-259
+    },
+    {
+      "test": "T9",
+      "label": "GPT-5 mini_coherence_vs_information",
+      "raw_p": 2.1695332241148328e-163,
+      "bh_adjusted_p": 3.3220977494258376e-163
+    },
+    {
+      "test": "T10",
+      "label": "Gemini 3 Flash",
+      "raw_p": 1.5928996005008533e-151,
+      "bh_adjusted_p": 2.365214558319449e-151
+    },
+    {
+      "test": "T9",
+      "label": "GPT-5 mini_coherence_vs_lexical",
+      "raw_p": 1.7956403972372761e-128,
+      "bh_adjusted_p": 2.5878346901360743e-128
+    },
+    {
+      "test": "T10",
+      "label": "GPT-5 mini",
+      "raw_p": 1.5981138928760454e-113,
+      "bh_adjusted_p": 2.2373594500264637e-113
+    },
+    {
+      "test": "T9",
+      "label": "Gemini 3 Flash_grammar_vs_lexical",
+      "raw_p": 1.853064917413058e-88,
+      "bh_adjusted_p": 2.522227248701107e-88
+    },
+    {
+      "test": "T16",
+      "label": "Gemini 3 Flash",
+      "raw_p": 2.4772318282580187e-80,
+      "bh_adjusted_p": 3.280658367152511e-80
+    },
+    {
+      "test": "T9",
+      "label": "GPT-5 mini_grammar_vs_lexical",
+      "raw_p": 4.205390337864765e-73,
+      "bh_adjusted_p": 5.422740172509828e-73
+    },
+    {
+      "test": "T9",
+      "label": "Gemini 3 Flash_grammar_vs_coherence",
+      "raw_p": 9.519679017566316e-69,
+      "bh_adjusted_p": 1.1960622355403834e-68
+    },
+    {
+      "test": "T16",
+      "label": "GPT-5 mini",
+      "raw_p": 1.0258822280432648e-42,
+      "bh_adjusted_p": 1.2567057293529993e-42
+    },
+    {
+      "test": "T9",
+      "label": "Gemini 3 Flash_grammar_vs_information",
+      "raw_p": 1.834898916305224e-23,
+      "bh_adjusted_p": 2.1929279731452678e-23
+    },
+    {
+      "test": "T9",
+      "label": "GPT-5 mini_information_vs_lexical",
+      "raw_p": 8.41726038043169e-22,
+      "bh_adjusted_p": 9.82013711050364e-22
+    },
+    {
+      "test": "T9",
+      "label": "Gemini 3 Flash_information_vs_lexical",
+      "raw_p": 4.605841629171269e-18,
+      "bh_adjusted_p": 5.2485172053347016e-18
+    },
+    {
+      "test": "T13",
+      "label": "coherence",
+      "raw_p": 5.799415695260103e-18,
+      "bh_adjusted_p": 6.458440206085115e-18
+    },
+    {
+      "test": "T9",
+      "label": "Gemini 3 Flash_coherence_vs_information",
+      "raw_p": 7.152379940869252e-12,
+      "bh_adjusted_p": 7.788147046724298e-12
+    },
+    {
+      "test": "T9",
+      "label": "GPT-5 mini_grammar_vs_information",
+      "raw_p": 5.663373750905639e-09,
+      "bh_adjusted_p": 6.032724212921224e-09
+    },
+    {
+      "test": "T15",
+      "label": "Gemini 3 Flash",
+      "raw_p": 0.0017808051667651662,
+      "bh_adjusted_p": 0.001856584110031769
+    },
+    {
+      "test": "T9",
+      "label": "Gemini 3 Flash_coherence_vs_lexical",
+      "raw_p": 0.00433466350133254,
+      "bh_adjusted_p": 0.004424968990943634
+    },
+    {
+      "test": "T15",
+      "label": "GPT-5 mini",
+      "raw_p": 0.20913493756548107,
+      "bh_adjusted_p": 0.2091349375654811
+    }
+  ],
+  "T19": {
+    "kappa_linear": 0.5316429744532013,
+    "kappa_quadratic": 0.7719582793384582
+  }
+}

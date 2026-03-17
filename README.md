@@ -1,8 +1,10 @@
 # Condemned to B
 
-**Nobody Gets an A: Distributional Bias in LLM Text Scoring**
+**Distributional Bias in LLM Text Scoring**
 
 An empirical investigation into score compression in large language model text evaluation — the systematic tendency of LLMs to avoid extreme ratings, compressing scores toward the interior of any provided scale regardless of true quality.
+
+> **Paper**: See [`paper/paper.tex`](paper/paper.tex) for the full LaTeX manuscript.
 
 ---
 
@@ -62,24 +64,15 @@ All LLM scores are elicited on an integer scale from 0 to 10.
 
 ### Source Material
 
-The corpus consists of 150 Wikipedia Featured Articles (FAs) — articles that have passed Wikipedia's rigorous peer review process (FA candidacy) and represent the highest quality tier of encyclopedic writing. FAs are selected because they provide:
+The corpus consists of 150 articles sourced from The Conversation (theconversation.com) — a media platform where academic experts and researchers write evidence-based articles for a general audience. Articles from The Conversation are selected because they provide:
 
-1. **Known high quality**: Each FA has been reviewed and promoted by experienced editors, establishing a credible "near-ceiling" baseline.
-2. **Topical diversity**: Articles are drawn from 16 categories (Arts, Biology, Culture, Film & TV, Geography, History, Mathematics, Media, Military, Music, Philosophy, Politics, Science, Sport, Technology, Transport) to avoid domain-specific scoring biases.
-3. **Availability**: Full text is freely accessible via the Wikipedia API.
+1. **Known high quality**: Each article is written by a domain expert (typically an academic researcher) and editorially reviewed, establishing a credible "near-ceiling" baseline for expository prose.
+2. **Topical diversity**: Articles are drawn from five broad categories (Arts & Culture, Business & Economy, Health, Politics & Society, Science & Technology) to avoid domain-specific scoring biases.
+3. **Availability**: Full text is freely accessible via the website.
 
 ### Selection Criteria
 
-From the pool of all English Wikipedia FAs, the 150 shortest articles (by raw character count) are selected. This serves two purposes:
-
-- **Token economy**: Shorter texts reduce API costs without sacrificing quality diversity.
-- **Full-text integrity**: No truncation is applied (`max_chars = 0`). Each article is used in its entirety, preserving the natural structure, argument flow, and coherence that FAs are scored on.
-
-The resulting corpus spans approximately 7,500–22,500 characters per article, with articles stored as JSON records containing title, category, and full text.
-
-### Fetching
-
-Corpus acquisition uses the `wikipedia-api` library with a custom user agent. Articles that do not exist or fall below 500 characters are excluded, with warnings logged.
+Articles are selected to maintain full-text integrity without truncation while controlling API costs. The resulting corpus preserves the natural structure, argument flow, and coherence of each article. Articles are stored as JSON records containing title, category, and full text.
 
 ---
 
@@ -435,7 +428,7 @@ Condemned_to_B/
 │
 ├── src/
 │   ├── main.py              # Pipeline orchestrator (runs steps 1–5)
-│   ├── corpus.py            # Step 1: Wikipedia FA fetcher
+│   ├── corpus.py            # Step 1: Article fetcher
 │   ├── degradation.py       # Step 2: Four-axis degradation engine
 │   ├── quality.py           # Step 3: Objective quality function Q
 │   ├── llm_scoring.py       # Step 4: LLM scoring with checkpointing
@@ -443,28 +436,37 @@ Condemned_to_B/
 │
 ├── scripts/
 │   ├── generate_graphs.py   # Standalone figure generation from raw data
+│   ├── run_analysis.py      # Full 19-test analysis pipeline (14 graphs)
 │   └── sanity_check.py      # Quick sanity checks on degradation output
+│
+├── paper/
+│   └── paper.tex            # LaTeX manuscript
 │
 ├── data/
 │   ├── corpus/               # (gitignored — regenerate with --step corpus)
-│   │   └── corpus.json      # 150 Wikipedia FA texts
+│   │   └── corpus.json      # 150 article texts
 │   ├── degraded/             # (gitignored — regenerate with --step degrade)
-│   │   └── degraded_samples.json  # 9,000 degraded samples (~117 MB)
+│   │   └── degraded_samples.json  # 9,000 degraded samples
 │   └── scores/               # committed
-│       └── gpt5_mini_scores.json  # 9,000 GPT-5 mini scores
+│       ├── gpt5_mini_scores.json     # 9,000 GPT-5 mini scores
+│       └── llm_scores_gemini.json    # 9,000 Gemini 3 Flash scores
 │
 └── output/
     └── figures/              # Generated plots and statistics
-        ├── dose_response_per_axis.png
-        ├── cross_axis_comparison.png
-        ├── score_distribution.png
-        ├── boxplots_per_axis.png
-        ├── violin_compression.png
-        ├── heatmap_scores.png
-        ├── undegraded_distribution.png
-        ├── axis_sensitivity_slopes.png
-        ├── distribution_per_axis.png
-        └── summary_statistics.csv
+        ├── G1_dose_response.png
+        ├── G2_cross_axis.png
+        ├── G3_score_histograms.png
+        ├── G4_undegraded_dist.png
+        ├── G5_per_level_dist.png
+        ├── G6_boxplots_grid.png
+        ├── G7_violins.png
+        ├── G8_forest_plot.png
+        ├── G9_calibration.png
+        ├── G10_inter_model_scatter.png
+        ├── G11_paired_diff.png
+        ├── G12_rep_consistency.png
+        ├── G13_category_effects.png
+        └── G14_residuals.png
 ```
 
 ---
@@ -499,7 +501,7 @@ cp .env.example .env
 python -m src.main
 
 # Individual steps
-python -m src.main --step corpus     # Fetch Wikipedia articles
+python -m src.main --step corpus     # Fetch articles
 python -m src.main --step degrade    # Generate 9,000 degraded samples
 python -m src.main --step llm        # Score with LLMs
 python -m src.main --step analysis   # Generate figures
