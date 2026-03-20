@@ -35,9 +35,9 @@
 % ── Title ─────────────────────────────────────────────────────
 \title{\textbf{No One Gets an A: Distributional Bias in LLM Text Scoring}}
 
-\author[1]{Idrees Aziz}
-\author[1]{Mahir Sadikhov}
-\affil[1]{Independent Researchers}
+\author{Idrees Aziz}
+\author{Mahir Sadikhov}
+\affil{Independent Researchers}
 
 \date{March 2026}
 
@@ -90,9 +90,9 @@ Our contributions go beyond documenting central tendency bias in a new modality.
 
 The use of LLMs as evaluators has grown rapidly since the introduction of ``LLM-as-a-judge'' frameworks~\citep{zheng2023judging}. Studies have examined positional bias (preference for responses presented first or second), verbosity bias (preference for longer outputs), and self-enhancement bias (preference for outputs from the same model family)~\citep{wang2023large}. However, the distributional properties of LLM-generated numeric scores---particularly the systematic avoidance of scale endpoints---have received comparatively little attention.
 
-\textbf{Central tendency bias in human rating.} Central tendency bias is well-documented in psychometrics: human raters systematically avoid extreme categories on Likert and other bounded scales, producing distributions compressed around the midpoint~\citep{stevens1971issues}. This tendency is modulated by rater expertise, scale length, and anchoring~\citep{guilford1954psychometric}. In automated essay scoring (AES), neural models trained on human ratings inherit these distributional properties, and post-hoc calibration methods such as beta scaling have been proposed to recover lost range~\citep{ke2019automated}. Whether LLMs exhibit analogous biases due to their training on human-generated rating data, reinforcement learning from human feedback (RLHF), or architectural constraints remains an open question.
+\textbf{Central tendency bias in human rating.} Central tendency bias is well-documented in psychometrics: human raters systematically avoid extreme categories on Likert and other bounded scales, producing distributions compressed around the midpoint~\citep{stevens1971issues}. This tendency is modulated by rater expertise, scale length, and anchoring~\citep{guilford1954psychometric}. In automated essay scoring (AES), neural models trained on human ratings inherit these distributional properties, and various calibration and normalization methods have been explored to recover lost range~\citep{ke2019automated}. Whether LLMs exhibit analogous biases due to their training on human-generated rating data, reinforcement learning from human feedback (RLHF), or architectural constraints remains an open question.
 
-\textbf{LLM-based evaluation.} Recent work has increasingly employed LLMs as stand-in evaluators for machine translation~\citep{kocmi2023large}, summarization, and open-ended generation. \citet{kocmi2023large} showed that GPT-based metrics achieve state-of-the-art correlation with human MT judgments but did not examine the distributional properties of the scores themselves. \citet{liu2023calibrating} demonstrated that LLM-generated evaluation scores exhibit significant miscalibration and proposed decomposed prompting strategies to improve alignment with human judgments.
+\textbf{LLM-based evaluation.} Recent work has increasingly employed LLMs as stand-in evaluators for machine translation~\citep{kocmi2023large}, summarization, and open-ended generation. \citet{kocmi2023large} showed that GPT-based metrics achieve state-of-the-art correlation with human MT judgments but did not examine the distributional properties of the scores themselves. \citet{liu2023geval} demonstrated that LLM-generated evaluation scores exhibit significant miscalibration and proposed decomposed prompting strategies to improve alignment with human judgments.
 
 Our work differs from these studies in that we do not compare LLM judgments against human judgments on naturalistic text. Instead, we construct a synthetic but precisely controlled quality gradient, enabling direct measurement of calibration fidelity without human annotation noise.
 
@@ -577,7 +577,7 @@ Kocmi, T. and Federmann, C. (2023).
 \newblock Large language models are state-of-the-art evaluators of translation quality.
 \newblock In \emph{Proceedings of the 24th Annual Conference of the European Association for Machine Translation}, pages 193--203.
 
-\bibitem[Liu et~al.(2023)]{liu2023calibrating}
+\bibitem[Liu et~al.(2023)]{liu2023geval}
 Liu, Y., Iter, D., Xu, Y., Wang, S., Xu, R., and Zhu, C. (2023).
 \newblock G-Eval: {NLG} evaluation using {GPT-4} with better human alignment.
 \newblock In \emph{Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing}, pages 2511--2522.
