@@ -33,7 +33,7 @@
 \newcommand{\pval}[1]{$p #1$}
 
 % ── Title ─────────────────────────────────────────────────────
-\title{\textbf{Condemned to B: Distributional Bias in LLM Text Scoring}}
+\title{\textbf{No One Gets an A: Distributional Bias in LLM Text Scoring}}
 
 \author[1]{Idrees Aziz}
 \author[1]{Mahir Sadikhov}
@@ -499,6 +499,12 @@ The compression manifests asymmetrically. At the ceiling, pristine texts receive
 \label{fig:residuals}
 \end{figure}
 
+\subsection{Linearity as Approximation}
+
+Our primary analysis relies on a linear reference model $S = 10(1 - \lambda)$ to quantify compression. While this provides an interpretable and assumption-lean benchmark, the empirical dose-response relationship is not perfectly linear. Nested $F$-tests reveal highly significant quadratic terms in all eight axis$\times$model regressions (Table~\ref{tab:nonlin}), and the dose-response curves (Figure~\ref{fig:doseresponse}) are visibly concave: sensitivity is highest at low degradation levels and diminishes as quality approaches the floor. This is consistent with psychophysical diminishing returns---the perceptual difference between a pristine and a mildly degraded text is larger than the difference between a moderately and a severely degraded text.
+
+Critically, the choice of a linear reference does not undermine our core findings. First, the complete absence of boundary scores (0 and 10 across 18{,}000 evaluations) is a model-free observation that requires no reference function. Second, the calibration recovery experiment (Section~\ref{sec:calibration}) shows that affine, sigmoid, and isotonic calibrations all converge to nearly identical curves, indicating that the residual non-linearity beyond an affine correction is modest. Third, a concave ground-truth function would imply that our linear reference \emph{understates} the true compression, making our reported compression ratios conservative. We therefore retain the linear model as a deliberate analytical choice---it is the simplest reference that permits closed-form compression ratios while erring on the side of underestimating the effect.
+
 \subsection{Axis-Specific Sensitivity}
 
 The models agree on the relative ordering of axis sensitivity: both are most sensitive to information deletion and least sensitive to coherence disruption. This ordering---information $>$ grammar $>$ lexical $>$ coherence---is consistent across models, though the magnitude differs. The significant three-way interactions in the mixed model confirm that models weight these dimensions differently.
@@ -545,11 +551,11 @@ Sixth, our scoring prompt is intentionally minimal to measure intrinsic calibrat
 
 We have demonstrated that two frontier large language models exhibit a robust score compression bias when evaluating text quality on a numeric scale. Both GPT-5~mini and Gemini~3~Flash systematically avoid the extremes of the 0--10 scale, compressing the effective range to 62--69\% of the ideal. This compression is statistically confirmed, highly reproducible across repetitions (ICC $> 0.90$), consistent across four independent quality axes, and present in models from two different providers.
 
-The title of this paper reflects the core finding: LLMs are, in a sense, ``condemned to B''---they resist assigning both top marks and failing grades, funneling their evaluations into a safe middle range. As LLMs are increasingly relied upon for automated text evaluation, understanding and correcting this distributional bias is essential for maintaining evaluation fidelity.
+The title of this paper reflects the core finding: no one gets an A---LLMs resist assigning top marks just as they resist failing grades, funneling their evaluations into a safe middle range. As LLMs are increasingly relied upon for automated text evaluation, understanding and correcting this distributional bias is essential for maintaining evaluation fidelity.
 
 \subsection*{Reproducibility}
 
-The complete codebase, including the degradation engine, scoring scripts, analysis pipeline, and all raw score data, is publicly available at \url{https://github.com/idreesaziz/condemned-to-b}. All experiments are deterministically reproducible via MD5-seeded randomness.
+The complete codebase, including the degradation engine, scoring scripts, analysis pipeline, and all raw score data, is publicly available at \url{https://github.com/idreesaziz/no-one-gets-an-a}. All experiments are deterministically reproducible via MD5-seeded randomness.
 
 % ══════════════════════════════════════════════════════════════
 % REFERENCES

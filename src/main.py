@@ -1,5 +1,5 @@
 """
-Condemned to B — Main Pipeline Orchestrator
+No One Gets an A — Main Pipeline Orchestrator
 
 Runs the full research pipeline:
   1. Fetch corpus (Wikipedia articles)
@@ -107,7 +107,7 @@ def run_pipeline(config: dict, step: str | None = None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Condemned to B — LLM Score Compression Research Pipeline"
+        description="No One Gets an A — LLM Score Compression Research Pipeline"
     )
     parser.add_argument(
         "--config", default="config.yaml",

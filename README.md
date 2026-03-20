@@ -1,4 +1,4 @@
-# Condemned to B
+# No One Gets an A
 
 **Distributional Bias in LLM Text Scoring**
 
@@ -421,7 +421,7 @@ Score distributions are examined for:
 ## Repository Structure
 
 ```
-Condemned_to_B/
+No_One_Gets_an_A/
 ├── config.yaml              # Full experiment configuration (articles, axes, levels, models)
 ├── requirements.txt         # Python dependencies
 ├── .env.example             # Template for API keys

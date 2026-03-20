@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Condemned to B — Comprehensive Statistical Analysis
+No One Gets an A — Comprehensive Statistical Analysis
 ====================================================
 19 tests + 14 graphs (publication-quality)
 
@@ -1312,7 +1312,7 @@ def graph_g14(df):
 
 def main():
     print("=" * 64)
-    print(" Condemned to B — Comprehensive Analysis")
+    print(" No One Gets an A — Comprehensive Analysis")
     print(" 19 tests + 14 graphs")
     print("=" * 64)
 
