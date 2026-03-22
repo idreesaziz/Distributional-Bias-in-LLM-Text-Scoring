@@ -1,472 +1,291 @@
+<div align="center">
+
 # No One Gets an A
 
-**Distributional Bias in LLM Text Scoring**
+### Distributional Bias in LLM Text Scoring
 
-An empirical investigation into score compression in large language model text evaluation — the systematic tendency of LLMs to avoid extreme ratings, compressing scores toward the interior of any provided scale regardless of true quality.
+*Idrees Aziz · Mahir Sadikhov*
 
-> **Paper**: See [`paper/paper.tex`](paper/paper.tex) for the full LaTeX manuscript.
+[![Paper](https://img.shields.io/badge/Paper-LaTeX-blue)](paper/paper.tex)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-yellow)](requirements.txt)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](#license)
+
+**When large language models rate text quality on a 0–10 scale, they never give a 0 or a 10.**
+**Not once across 18,000 evaluations.**
+
+</div>
+
+---
+
+## The Core Finding
+
+LLMs systematically compress their scores into a narrow interior band, regardless of true quality variation. Expert-authored, editorially curated articles top out at 8–9. Heavily corrupted, barely readable text bottoms out at 2–3. The full scale is never used.
+
+<p align="center">
+  <img src="output/figures/G3_score_histograms.png" alt="Score distributions for both models" width="100%"/>
+</p>
+<p align="center"><em>Overall score distributions (n = 9,000 per model). Red arrows mark scores of 0 and 10 — never assigned by either model.</em></p>
+
+We call this **score compression**: the effective scoring range shrinks to **62–69%** of ideal, confirmed across two frontier models from different providers.
+
+| | GPT-5 mini | Gemini 3 Flash |
+|---|:---:|:---:|
+| **Samples scored** | 9,000 | 9,000 |
+| **Observed range** | 1–9 | 2–9 |
+| **Mean score** | 4.32 | 5.21 |
+| **Compression ratio** | 0.685 (CI: 0.668–0.700) | 0.621 (CI: 0.603–0.634) |
+| **Times a 0 was given** | 0 | 0 |
+| **Times a 10 was given** | 0 | 0 |
 
 ---
 
 ## Table of Contents
 
-1. [Motivation](#motivation)
-2. [Experimental Design](#experimental-design)
-3. [Corpus Construction](#corpus-construction)
-4. [Degradation Engine](#degradation-engine)
-   - [Axis 1: Grammar Corruption](#axis-1-grammar-corruption)
-   - [Axis 2: Coherence Disruption](#axis-2-coherence-disruption)
-   - [Axis 3: Information Deletion](#axis-3-information-deletion)
-   - [Axis 4: Lexical Collapse](#axis-4-lexical-collapse)
-5. [Deterministic Reproducibility](#deterministic-reproducibility)
-6. [Scoring Protocol](#scoring-protocol)
-7. [Statistical Analysis](#statistical-analysis)
-8. [Repository Structure](#repository-structure)
-9. [Running the Pipeline](#running-the-pipeline)
+- [The Core Finding](#the-core-finding)
+- [Key Results](#key-results)
+  - [Pristine Texts Never Get a 10](#pristine-texts-never-get-a-10)
+  - [The Compression Gap](#the-compression-gap)
+  - [Dose-Response Curves](#dose-response-curves)
+  - [Axis-Specific Sensitivity](#axis-specific-sensitivity)
+  - [Inter-Model Agreement and Bias](#inter-model-agreement-and-bias)
+  - [Score Distributions by Degradation Level](#score-distributions-by-degradation-level)
+  - [Scoring Consistency](#scoring-consistency)
+  - [Category Effects](#category-effects)
+  - [Calibration Recovery](#calibration-recovery)
+  - [Residual Diagnostics](#residual-diagnostics)
+- [Experimental Design](#experimental-design)
+- [Degradation Engine](#degradation-engine)
+- [Scoring Protocol](#scoring-protocol)
+- [Repository Structure](#repository-structure)
+- [Running the Pipeline](#running-the-pipeline)
+- [Citation](#citation)
+- [License](#license)
 
 ---
 
-## Motivation
+## Key Results
 
-When asked to rate text quality on a numeric scale (e.g., 0–10), LLMs rarely assign scores at the extremes. A pristine, publication-quality text that a human expert would comfortably rate 9 or 10 consistently receives a 7 or 8. Conversely, heavily corrupted text that is borderline unreadable rarely drops below 2 or 3. The empirical score distribution concentrates in a narrow band, regardless of the true quality range of the input.
+### Pristine Texts Never Get a 10
 
-This project constructs a controlled experiment to measure this compression effect rigorously. By starting from texts of known high quality and applying *precisely controlled, mathematically defined* degradations along independent axes, we create a ground-truth quality gradient and measure how faithfully LLMs reproduce it.
+Even undegraded, expert-authored articles — written by academics and professionally edited — never receive a perfect score from either model.
+
+<p align="center">
+  <img src="output/figures/G4_undegraded_dist.png" alt="Undegraded score distributions" width="100%"/>
+</p>
+<p align="center"><em>Score distribution for pristine (λ = 0.0) texts only (n = 1,800 per model). Both models concentrate at 8–9; neither ever assigns 10.</em></p>
+
+### The Compression Gap
+
+Both models fall short of the ideal calibration line. The shaded area below is scoring range that is lost to boundary avoidance.
+
+<p align="center">
+  <img src="output/figures/G9_calibration.png" alt="Calibration plot" width="100%"/>
+</p>
+<p align="center"><em>Observed mean scores vs. the naive calibration reference line S = 10(1 − λ). The shaded region represents the compression gap.</em></p>
+
+### Dose-Response Curves
+
+Both models respond to degradation — scores drop as quality worsens — but with only ~65% of ideal sensitivity and a visibly concave shape.
+
+<p align="center">
+  <img src="output/figures/G1_dose_response.png" alt="Dose-response curves" width="100%"/>
+</p>
+<p align="center"><em>Mean LLM score vs. degradation level for each axis. Shaded bands = 95% bootstrap CIs. Dashed gray = ideal linear reference. Note the concave trajectory — sensitivity diminishes at higher degradation.</em></p>
+
+### Axis-Specific Sensitivity
+
+Both models are most sensitive to **information deletion** and least sensitive to **coherence disruption** — suggesting they weight local sentence features more heavily than global discourse structure.
+
+<p align="center">
+  <img src="output/figures/G2_cross_axis.png" alt="Cross-axis sensitivity" width="100%"/>
+</p>
+<p align="center"><em>Cross-axis sensitivity comparison. Information deletion elicits the steepest score drops; coherence disruption the shallowest.</em></p>
+
+<p align="center">
+  <img src="output/figures/G8_forest_plot.png" alt="Forest plot of regression slopes" width="100%"/>
+</p>
+<p align="center"><em>Forest plot of regression slopes (β₁) with 95% CIs for each axis × model combination. All slopes are significantly negative (p < 10⁻³⁰⁰).</em></p>
+
+| Axis | GPT-5 mini β₁ (SE) | GPT R² | Gemini β₁ (SE) | Gemini R² |
+|---|:---:|:---:|:---:|:---:|
+| Grammar | −6.82 (0.11) | 0.63 | −6.81 (0.08) | 0.76 |
+| Coherence | −4.78 (0.11) | 0.47 | −5.58 (0.10) | 0.58 |
+| Information | −7.87 (0.09) | 0.78 | −7.05 (0.08) | 0.79 |
+| Lexical | −6.38 (0.10) | 0.64 | −5.26 (0.09) | 0.60 |
+| **Average** | **−6.46** | | **−6.18** | |
+
+Under ideal linear calibration, the expected slope is −10. Both models achieve only 62–65% of that sensitivity.
+
+### Inter-Model Agreement and Bias
+
+Despite high correlation (Pearson *r* = 0.84), Gemini systematically scores **+1 point higher** than GPT on the same texts (Wilcoxon *p* < 10⁻³⁰⁰, rank-biserial *r* = 0.71).
+
+<p align="center">
+  <img src="output/figures/G10_inter_model_scatter.png" alt="Inter-model scatter" width="100%"/>
+</p>
+<p align="center"><em>Inter-model agreement (n = 9,000 paired samples). Points above the identity line indicate Gemini scored higher. Colored by degradation level.</em></p>
+
+<p align="center">
+  <img src="output/figures/G11_paired_diff.png" alt="Paired score differences" width="100%"/>
+</p>
+<p align="center"><em>Distribution of paired score differences (Gemini − GPT). Right-shifted with median +1, confirming systematic positive bias.</em></p>
+
+> **Practical implication:** Scores from different LLM providers are not interchangeable. A threshold calibrated on GPT scores will systematically fail if applied to Gemini scores.
+
+### Score Distributions by Degradation Level
+
+<p align="center">
+  <img src="output/figures/G5_per_level_dist.png" alt="Per-level distributions" width="100%"/>
+</p>
+<p align="center"><em>Score distributions by degradation level. At λ = 0.0, scores cluster at 8–9. At λ = 0.8, they reconcentrate at 2–4.</em></p>
+
+<p align="center">
+  <img src="output/figures/G6_boxplots_grid.png" alt="Boxplots by axis and level" width="100%"/>
+</p>
+<p align="center"><em>Boxplots by axis and degradation level. IQR is narrowest at the extremes, reflecting ceiling and floor compression.</em></p>
+
+<p align="center">
+  <img src="output/figures/G7_violins.png" alt="Violin plots" width="100%"/>
+</p>
+<p align="center"><em>Violin plots by degradation level and model. The bimodal shape at λ = 0.2 reflects the mixture as degradation begins to take effect.</em></p>
+
+### Scoring Consistency
+
+Both models achieve excellent intra-condition reliability (ICC > 0.90). Gemini reaches near-perfect consistency on pristine texts (ICC = 0.989 at λ = 0.0) at temperature 0.
+
+<p align="center">
+  <img src="output/figures/G12_rep_consistency.png" alt="Consistency heatmap" width="100%"/>
+</p>
+<p align="center"><em>Mean coefficient of variation (CV) across 3 repetitions, by axis and degradation level. Lighter = more consistent.</em></p>
+
+| Axis | GPT-5 mini ICC | Gemini ICC |
+|---|:---:|:---:|
+| Grammar | 0.963 | 0.950 |
+| Coherence | 0.850 | 0.844 |
+| Information | 0.925 | 0.913 |
+| Lexical | 0.897 | 0.890 |
+| **Overall** | **0.926** | **0.905** |
+
+### Category Effects
+
+Even among expert-authored articles from a single platform, LLMs exhibit domain-dependent scoring preferences.
+
+<p align="center">
+  <img src="output/figures/G13_category_effects.png" alt="Category effects" width="100%"/>
+</p>
+<p align="center"><em>Undegraded scores by article category. Both models score Science & Technology highest and Politics & Society lowest.</em></p>
+
+### Calibration Recovery
+
+Can the bias be corrected? A simple two-parameter affine transform reduces RMSE by **12–27%** — but a residual error of ~1.6–1.9 points persists even with the best possible monotonic calibration (isotonic regression).
+
+<p align="center">
+  <img src="output/figures/G15_calibration_recovery.png" alt="Calibration recovery" width="100%"/>
+</p>
+<p align="center"><em>Dose-response curves before and after calibration. Affine, sigmoid, and isotonic methods all converge — the residual reflects irreducible rank-order noise.</em></p>
+
+| Model | Calibration | RMSE | ΔRMSE |
+|---|---|:---:|:---:|
+| GPT-5 mini | Raw | 2.56 | — |
+| | Affine | 1.87 | −27% |
+| | Isotonic | 1.87 | −27% |
+| Gemini 3 Flash | Raw | 1.82 | — |
+| | Affine | 1.60 | −12% |
+| | Isotonic | 1.59 | −13% |
+
+**Dual takeaway:** (1) A cheap affine fix recovers meaningful accuracy. (2) The models genuinely lose discriminative information that no rescaling can recover.
+
+### Residual Diagnostics
+
+<p align="center">
+  <img src="output/figures/G14_residuals.png" alt="Residual diagnostics" width="100%"/>
+</p>
+<p align="center"><em>Residuals vs. fitted values (left) with LOWESS smoother showing systematic curvature. Q-Q plots (right) show heavy-tailed, discrete residuals — expected for bounded integer scores.</em></p>
 
 ---
 
 ## Experimental Design
 
-### Overview
+**150 articles × 4 axes × 5 levels × 3 repetitions = 9,000 samples per model**
 
-The experiment operates as a factorial design:
+| Component | Detail |
+|---|---|
+| **Corpus** | 150 expert-authored articles from [The Conversation](https://theconversation.com), across 5 categories |
+| **Degradation axes** | Grammar, Coherence, Information, Lexical — each applied in isolation |
+| **Intensity levels** | λ ∈ {0.0, 0.2, 0.4, 0.6, 0.8} — capped at 0.8 to keep texts parseable |
+| **Repetitions** | 3 per condition for reliability estimation |
+| **Models** | GPT-5 mini (OpenAI, T=1.0) and Gemini 3 Flash (Google, T=0.0) |
+| **Prompt** | Minimal: *"Rate the quality of the following text from 0 to 10. Respond with ONLY the number."* |
 
-$$N = |\mathcal{C}| \times |\mathcal{A}| \times |\mathcal{L}| \times R$$
-
-where:
-- $\mathcal{C}$: set of corpus texts ($|\mathcal{C}| = 150$)
-- $\mathcal{A}$: set of degradation axes ($|\mathcal{A}| = 4$: grammar, coherence, information, lexical)
-- $\mathcal{L}$: set of degradation levels ($|\mathcal{L}| = 5$: $\{0.0, 0.2, 0.4, 0.6, 0.8\}$)
-- $R$: repetitions per condition ($R = 3$)
-
-This yields $150 \times 4 \times 5 \times 3 = 9{,}000$ degraded samples.
-
-### Axis Isolation
-
-Each sample is degraded along exactly *one* axis. This is critical: by corrupting grammar while holding coherence, information, and vocabulary constant (and vice versa), we can attribute any scoring biases to specific quality dimensions rather than confounded combinations.
-
-### Scale
-
-All LLM scores are elicited on an integer scale from 0 to 10.
-
----
-
-## Corpus Construction
-
-### Source Material
-
-The corpus consists of 150 articles sourced from The Conversation (theconversation.com) — a media platform where academic experts and researchers write evidence-based articles for a general audience. Articles from The Conversation are selected because they provide:
-
-1. **Known high quality**: Each article is written by a domain expert (typically an academic researcher) and editorially reviewed, establishing a credible "near-ceiling" baseline for expository prose.
-2. **Topical diversity**: Articles are drawn from five broad categories (Arts & Culture, Business & Economy, Health, Politics & Society, Science & Technology) to avoid domain-specific scoring biases.
-3. **Availability**: Full text is freely accessible via the website.
-
-### Selection Criteria
-
-Articles are selected to maintain full-text integrity without truncation while controlling API costs. The resulting corpus preserves the natural structure, argument flow, and coherence of each article. Articles are stored as JSON records containing title, category, and full text.
+Each sample is degraded along exactly **one** axis, isolating quality dimensions so scoring biases can be attributed to specific aspects rather than confounded combinations.
 
 ---
 
 ## Degradation Engine
 
-The degradation engine (`src/degradation.py`) corrupts clean texts along four independent, orthogonal axes at controlled intensity levels. Each degradation function takes:
+The degradation engine ([`src/degradation.py`](src/degradation.py)) corrupts clean texts along four independent axes at controlled intensity. At λ = 0, the original text is returned unchanged. All randomness is deterministic via MD5-seeded RNG.
 
-- `text`: the original article text (a string)
-- `level`: degradation intensity $\lambda \in [0, 1]$ (in practice $\{0.0, 0.2, 0.4, 0.6, 0.8\}$)
-- `rng`: a seeded `random.Random` instance for reproducibility
+| Axis | Method | What it preserves |
+|---|---|---|
+| **Grammar** | 9-stage pipeline: typos, agreement errors, tense swaps, article errors, homophones, preposition errors, double comparatives, hyphenation errors, word-order disruption | Meaning, vocabulary, information |
+| **Coherence** | Bounded random sentence swaps with controlled displacement distance | All content, grammar, vocabulary |
+| **Information** | 5-phase deletion pipeline: parentheticals → modifiers → prepositional phrases → subordinate clauses → content words | Grammar, sentence structure |
+| **Lexical** | GloVe-based synonym replacement, collapsing diverse vocabulary to common alternatives with morphological transfer | Meaning, grammar, information |
 
-At $\lambda = 0$, the original text is returned unchanged. As $\lambda$ increases, corruption severity increases monotonically.
+All randomness is deterministic via MD5-seeded RNG:
 
----
+```
+seed = MD5(title ∥ axis ∥ level ∥ rep) mod 2³¹
+```
 
-### Axis 1: Grammar Corruption
-
-Grammar degradation introduces surface-level mechanical errors while preserving meaning, vocabulary, and information content. It is implemented as a pipeline of nine independent sub-transformations, applied sequentially:
-
-$$G(t, \lambda) = (f_9 \circ f_8 \circ \cdots \circ f_1)(t, \lambda)$$
-
-Each sub-transformation applies its errors stochastically, with individual error probabilities scaled by $\lambda$.
-
-#### Sub-transformation 1: Keyboard Typos
-
-Simulates mechanical typing errors. For each alphabetic character $c$ in the text, with probability:
-
-$$p_{\text{typo}} = \min(\lambda \cdot 0.02,\ 0.03)$$
-
-one of three mutations is applied (chosen uniformly at random):
-
-| Mutation | Effect |
-|----------|--------|
-| **Swap** | Replace $c$ with a random character from its adjacent keys on a QWERTY keyboard |
-| **Double** | Duplicate $c$ (e.g., `t` → `tt`) |
-| **Drop** | Delete $c$ entirely |
-
-The adjacency map covers all 26 lowercase letters with their QWERTY neighbors.
-
-#### Sub-transformation 2: Agreement Errors
-
-Introduces subject-verb agreement violations using 8 regex substitution patterns. For each pattern match, the error is applied with probability:
-
-$$p_{\text{agree}} = \lambda \cdot 0.3$$
-
-Examples:
-- *"he was"* → *"he were"*
-- *"they have"* → *"they has"*
-- *"it is"* → *"it are"*
-
-#### Sub-transformation 3: Tense Swaps
-
-Replaces past-tense verb forms with present-tense equivalents using 20 regex patterns. For each match:
-
-$$p_{\text{tense}} = \lambda \cdot 0.15$$
-
-Examples: *"was"* → *"is"*, *"wrote"* → *"writes"*, *"brought"* → *"brings"*.
-
-#### Sub-transformation 4: Article Errors
-
-Three types of article manipulation, applied per word:
-
-| Error | Probability | Effect |
-|-------|-------------|--------|
-| a/an swap | $\lambda \cdot 0.3$ | *"a elephant"*, *"an car"* |
-| Article deletion | $\lambda \cdot 0.15$ | Drop *"the"*, *"a"*, *"an"* |
-| Spurious insertion | $\lambda \cdot 0.05$ | Insert *"the"* before capitalized words mid-sentence |
-
-#### Sub-transformation 5: Confusable Homophones
-
-Substitutes common confused word pairs from a 30-entry lookup table (15 bidirectional pairs). For each word matching a confusable:
-
-$$p_{\text{confuse}} = \lambda \cdot 0.25$$
-
-Pairs include: *its/it's*, *their/there*, *affect/effect*, *then/than*, *lose/loose*, *complement/compliment*, *principal/principle*, *weather/whether*, etc.
-
-#### Sub-transformation 6: Preposition Errors
-
-Replaces correct preposition collocations with incorrect ones from a 15-entry table. For each collocation found in the text:
-
-$$p_{\text{prep}} = \lambda \cdot 0.4$$
-
-Examples: *"interested in"* → *"interested for"*, *"depend on"* → *"depend of"*, *"based on"* → *"based off"*.
-
-#### Sub-transformation 7: Double Comparative Errors
-
-Transforms synthetic comparatives into pleonastic double comparatives from an 8-entry table:
-
-$$p_{\text{comp}} = \lambda \cdot 0.5$$
-
-Examples: *"better"* → *"more better"*, *"faster"* → *"more faster"*.
-
-#### Sub-transformation 8: Hyphenation Errors
-
-Two types of hyphen corruption:
-
-1. **Compound splitting** (26 entries): Removes hyphens from compound modifiers (*"well-known"* → *"well known"*) with probability $\lambda \cdot 0.4$.
-2. **Spurious joining** (6 entries): Merges separate words into compounds (*"every day"* → *"everyday"*) with probability $\lambda \cdot 0.3$.
-
-#### Sub-transformation 9: Word-Order Disruption
-
-Active only when $\lambda \geq 0.3$. Within each sentence, performs local adjacent-word swaps:
-
-$$n_{\text{swaps}} = \max\!\left(0,\ \left\lfloor |W| \cdot \lambda \cdot 0.08 \right\rfloor\right)$$
-
-where $|W|$ is the word count of the sentence. Each swap exchanges two adjacent words.
-
----
-
-### Axis 2: Coherence Disruption
-
-Coherence degradation disrupts the logical flow and coreference chains of a text by shuffling sentence order, while *perfectly preserving* all content, grammar, and vocabulary. This isolates coherence as an independent quality dimension.
-
-#### Algorithm
-
-Given a text tokenized into $n$ sentences $S = (s_1, s_2, \ldots, s_n)$:
-
-1. Compute the number of swap operations:
-$$n_{\text{swaps}} = \max\!\left(1,\ \left\lfloor n \cdot \lambda \cdot 0.8 \right\rfloor\right)$$
-
-2. Compute the maximum displacement distance:
-$$d_{\max} = \max\!\left(1,\ \left\lfloor n \cdot \lambda \cdot 0.6 \right\rfloor\right)$$
-
-3. For each of the $n_{\text{swaps}}$ iterations:
-   - Select a random index $i \sim \mathcal{U}\{0, n-1\}$
-   - Select a swap target $j \sim \mathcal{U}\{\max(0, i - d_{\max}),\ \min(n-1, i + d_{\max})\}$
-   - Swap $S[i] \leftrightarrow S[j]$
-
-The bounded displacement ensures that at low $\lambda$, sentences drift only slightly from their original positions (local disorder), while at high $\lambda$, sentences can be displaced across the entire text (global disorder).
-
-**Guard**: Texts with $n \leq 2$ sentences are returned unchanged (shuffling is meaningless).
-
-#### Properties
-
-- **Content preservation**: Every original sentence appears exactly once — no additions or deletions.
-- **Grammar preservation**: Individual sentences are unmodified.
-- **Monotonic severity**: Higher $\lambda$ produces more swaps over larger distances, strictly increasing disorder.
-
----
-
-### Axis 3: Information Deletion
-
-Information degradation progressively removes content from the text through a five-phase pipeline, targeting increasingly important linguistic constituents. Each phase is probability-gated by $\lambda$, and phases targeting more essential content activate only at higher degradation levels.
-
-$$I(t, \lambda) = \mathrm{clean}\!\left((g_5 \circ g_4 \circ g_3 \circ g_2 \circ g_1)(t, \lambda)\right)$$
-
-#### Phase 1: Parenthetical Deletion
-
-Removes parenthetical expressions (content within parentheses, 5–80 characters) via regex:
-
-$$p_{\text{paren}} = \lambda \cdot 0.6$$
-
-Pattern: `\([^)]{5,80}\)` — captures supplementary details, citations, and clarifications.
-
-#### Phase 2: Modifier Deletion
-
-POS-tags each sentence using NLTK's averaged perceptron tagger and removes adjectives and adverbs (tags: JJ, JJR, JJS, RB, RBR, RBS):
-
-$$p_{\text{mod}} = \lambda \cdot 0.5$$
-
-This strips descriptive richness while leaving core predicate-argument structure intact.
-
-#### Phase 3: Prepositional Phrase Deletion
-
-Activates only when $\lambda \geq 0.3$. Matches prepositional phrases via regex (20 prepositions followed by optional determiner and 1–5 content words):
-
-$$p_{\text{pp}} = (\lambda - 0.2) \cdot 0.25$$
-
-This removes locative, temporal, and instrumental adjuncts.
-
-#### Phase 4: Subordinate Clause Deletion
-
-Matches subordinate clauses introduced by conjunctions and relative pronouns (which, who, whom, that, although, because, since, while, etc.) spanning 10–80 characters:
-
-$$p_{\text{subord}} = \lambda \cdot 0.3$$
-
-Preserving the clause-final punctuation prevents sentence-boundary artifacts.
-
-#### Phase 5: Content Word Deletion
-
-Activates only when $\lambda \geq 0.5$. POS-tags each sentence and removes content words (nouns, verbs — excluding modifiers already handled in Phase 2):
-
-$$p_{\text{content}} = (\lambda - 0.4) \cdot 0.2$$
-
-This is the most aggressive phase, applied only at high degradation levels, stripping core semantic content.
-
-#### Post-Processing
-
-After all phases, artifacts are cleaned:
-- Collapsed whitespace (`/  +/` → single space)
-- Detached punctuation (`/ ([.,;:!?])/` → attached)
-- Empty parentheses, double punctuation removed
-
----
-
-### Axis 4: Lexical Collapse
-
-Lexical degradation flattens vocabulary diversity by replacing content words with their more common synonyms, simulating the kind of vocabulary simplification that distinguishes basic from sophisticated writing. Domain-specific terminology and technical vocabulary are explicitly protected from substitution.
-
-#### Synonym Generation
-
-Synonym candidates are generated using pre-trained word embeddings (GloVe 840B 300d, 2.2M vectors). For each eligible content word $w$:
-
-1. Retrieve the $k = 30$ nearest neighbors of $w$ by cosine similarity in the embedding space.
-2. Filter candidates by:
-   - **Cosine threshold**: $\cos(w, w') \geq 0.65$
-   - **Frequency threshold**: $\text{freq}(w') \geq 3 \times 10^{-6}$ (via `wordfreq` library, covering the ~100K most common English words)
-   - **POS constraint**: candidate must belong to the same broad POS class (noun, verb, adjective) as the source word
-   - **Form**: single alphabetic token, length $\geq 4$, not in a stop-word skip list of ~150 function words
-
-The frequency threshold ensures that technical terms (e.g., *"mitochondria"*, *"topography"*) are never substituted — only general-vocabulary content words participate.
-
-Results are cached by $(w, p)$ where $p$ is the broad POS group, so each unique word is looked up exactly once across all 9,000 samples.
-
-#### Two-Pass Replacement Algorithm
-
-The replacement uses a two-pass approach to create controlled vocabulary collapse:
-
-**Pass 1 — Canonical Registration (right-to-left):**
-
-Scanning the text from right to left, the *last* occurrence of each synonym group becomes the canonical form. For each eligible content word:
-
-1. Lemmatize via NLTK's WordNet lemmatizer: $\ell = \text{lemmatize}(w, \text{pos})$
-2. Retrieve embedding synonyms $\text{syn}(w)$
-3. For all members $m \in \text{syn}(w) \cup \{w\}$ not yet assigned a canonical form, set $\text{canonical}(m) = \ell$
-
-Storing the *base lemma* (not the surface form) as canonical prevents double-inflection errors in Pass 2.
-
-**Pass 2 — Probabilistic Replacement (left-to-right):**
-
-Scanning left to right through content-word positions:
-
-1. Look up $\text{canonical}(w)$ (trying surface form, then lemma)
-2. Skip if canonical lemma equals the word's own lemma (no change needed)
-3. Skip if the canonical word already appears elsewhere in the same sentence (prevents awkward repetition within a sentence)
-4. With probability $\lambda$, replace $w$ with $\text{canonical}(w)$, inflected to match the original word's morphology
-
-$$P(\textrm{replace } w_i) = \lambda$$
-
-There is no hard ceiling — the replacement probability scales linearly with $\lambda$, guaranteeing a smooth gradient across severity levels.
-
-#### Morphological Transfer
-
-When replacing a word, its surface morphology must be preserved. The function `_transfer_morphology(original, base, tag)` inflects the canonical base lemma to match the original word's POS tag:
-
-| Tag | Transformation |
-|-----|---------------|
-| NN, JJ, RB | Identity (base form) |
-| NNS | Pluralize (+s) |
-| VBD | Past tense (irregular table or +ed, with consonant doubling) |
-| VBN | Past participle (irregular table or +ed) |
-| VBG | Progressive (−e+ing, with consonant doubling) |
-| VBZ | Third person (+s or +es) |
-
-Irregular past tenses and participles are handled via lookup tables (~50 common irregular verbs). Consonant doubling follows the standard English rule: double the final consonant if the word has one vowel group, ends in a consonant (not w, x, y), and the penultimate character is a vowel.
-
-#### Case Preservation
-
-The replacement preserves the capitalization pattern of the original word:
-- Initial capital → capitalize replacement
-- All uppercase → uppercase replacement
-- Otherwise → lowercase
-
----
-
-## Deterministic Reproducibility
-
-All randomness in the degradation engine is deterministic. For each sample, a seed is computed via:
-
-$$\text{seed} = \text{MD5}\!\left(\texttt{title} \mathbin\Vert \texttt{axis} \mathbin\Vert \texttt{level} \mathbin\Vert \texttt{rep}\right) \bmod 2^{31}$$
-
-where $\mathbin\Vert$ denotes string concatenation with underscore separators.
-
-This was a deliberate fix over Python's built-in `hash()`, which is session-randomized via `PYTHONHASHSEED` since Python 3.3. MD5 hashing produces identical seeds across machines, operating systems, and Python versions, ensuring bitwise-identical degraded texts on any rerun.
-
-A fresh `random.Random(seed)` instance is created per sample, so degradation of one sample never affects another.
+A fresh `random.Random(seed)` per sample ensures bitwise-identical results across machines, OSes, and Python versions.
 
 ---
 
 ## Scoring Protocol
 
-### Prompt Design
+Each sample is scored in isolation with a minimal, unanchored prompt:
 
-Each degraded text is presented to the LLM in isolation with a minimal prompt designed to avoid anchoring effects:
+- **System**: *"Rate the quality of the following text from 0 to 10. Respond with ONLY the number."*
+- **User**: The degraded text, wrapped in delimiters.
 
-- **System message**: `"Rate the quality of the following text from 0 to 10. Respond with ONLY the number."`
-- **User message**: `"Please rate the quality of the following text:\n\n---\n{text}\n---"`
+No rubric, examples, or reference texts — measuring intrinsic calibration only.
 
-The prompt provides no rubric, no examples, and no reference texts. This is intentional: we are measuring the LLM's *intrinsic* calibration on an unanchored scale, not its ability to follow a grading rubric.
-
-### Models
-
-| Model | Provider | Reasoning | Temperature |
-|-------|----------|-----------|-------------|
-| GPT-5 mini | OpenAI | Yes (reasoning model) | 1.0 (only supported value) |
-| Gemini 3 Flash | Google | Minimal (`thinking_level="minimal"`) | 0.0 |
-
-GPT-5 mini is a reasoning model that internally allocates "thinking tokens" before producing a visible response. With `max_completion_tokens=1024`, approximately 200–320 tokens are used for internal reasoning and ~10 for the visible output. Temperature cannot be set to 0 for this model (only the default of 1.0 is supported).
-
-Gemini 3 Flash uses `thinking_level="minimal"` to reduce reasoning overhead while keeping temperature at 0.0 for maximum determinism.
-
-### Response Parsing
-
-The raw LLM response is parsed by extracting the first integer match 0–10 via:
-
-```
-re.search(r'\b(10|\d)\b', response)
-```
-
-If parsing fails (empty response, non-numeric output), the sample is retried up to 5 times with exponential backoff.
-
-### Checkpointing
-
-Scores are checkpointed to a JSONL file every 5 samples, allowing the scoring run to resume from the last checkpoint on interruption. Completed checkpoints are consolidated into a single JSON output file.
-
----
-
-## Statistical Analysis
-
-### Dose-Response Curves
-
-For each axis $a$ and model $m$, the mean LLM score is plotted as a function of degradation level $\lambda$:
-
-$$\bar{S}_m(a, \lambda) = \frac{1}{|\mathcal{C}| \cdot R} \sum_{c \in \mathcal{C}} \sum_{r=1}^{R} S_m(c, a, \lambda, r)$$
-
-with 95% confidence intervals computed via the standard error of the mean.
-
-### Axis Sensitivity
-
-Linear regression is fitted per axis to quantify how responsive each model is to degradation:
-
-$$\bar{S}_m(a, \lambda) = \beta_0 + \beta_1 \lambda + \varepsilon$$
-
-The slope $\beta_1$ indicates sensitivity (steeper = more responsive to quality changes), and $R^2$ indicates how well degradation level predicts the LLM score.
-
-### Distribution Analysis
-
-Score distributions are examined for:
-
-- **Range compression**: What fraction of the 0–10 scale is actually used?
-- **Boundary avoidance**: How often do scores of 0 or 10 appear?
-- **Central tendency**: Where does the mode of the undegraded ($\lambda = 0$) distribution fall?
+| Model | Provider | Temperature | Notes |
+|---|---|:---:|---|
+| GPT-5 mini | OpenAI | 1.0 | Reasoning model; T=1.0 is the only supported value |
+| Gemini 3 Flash | Google | 0.0 | Minimal thinking; deterministic decoding |
 
 ---
 
 ## Repository Structure
 
 ```
-No_One_Gets_an_A/
-├── config.yaml              # Full experiment configuration (articles, axes, levels, models)
-├── requirements.txt         # Python dependencies
-├── .env.example             # Template for API keys
-│
-├── src/
-│   ├── main.py              # Pipeline orchestrator (runs steps 1–5)
-│   ├── corpus.py            # Step 1: Article fetcher
-│   ├── degradation.py       # Step 2: Four-axis degradation engine
-│   ├── quality.py           # Step 3: Objective quality function Q
-│   ├── llm_scoring.py       # Step 4: LLM scoring with checkpointing
-│   └── analysis.py          # Step 5: Statistical analysis & figures
-│
-├── scripts/
-│   ├── generate_graphs.py   # Standalone figure generation from raw data
-│   ├── run_analysis.py      # Full 19-test analysis pipeline (14 graphs)
-│   └── sanity_check.py      # Quick sanity checks on degradation output
-│
+├── config.yaml                  # Experiment configuration
+├── requirements.txt             # Python dependencies
 ├── paper/
-│   └── paper.tex            # LaTeX manuscript
-│
+│   └── paper.tex                # Full LaTeX manuscript
+├── src/
+│   ├── main.py                  # Pipeline orchestrator
+│   ├── corpus.py                # Article fetcher
+│   ├── degradation.py           # Four-axis degradation engine
+│   ├── quality.py               # Objective quality function
+│   ├── llm_scoring.py           # LLM scoring with checkpointing
+│   └── analysis.py              # Statistical analysis & figures
+├── scripts/
+│   ├── generate_graphs.py       # Standalone figure generation
+│   ├── run_analysis.py          # Full analysis pipeline
+│   ├── calibration_recovery.py  # Calibration experiment
+│   └── sanity_check.py          # Quick degradation checks
 ├── data/
-│   ├── corpus/               # (gitignored — regenerate with --step corpus)
-│   │   └── corpus.json      # 150 article texts
-│   ├── degraded/             # (gitignored — regenerate with --step degrade)
-│   │   └── degraded_samples.json  # 9,000 degraded samples
-│   └── scores/               # committed
-│       ├── gpt5_mini_scores.json     # 9,000 GPT-5 mini scores
-│       └── llm_scores_gemini.json    # 9,000 Gemini 3 Flash scores
-│
+│   ├── corpus/                  # 150 article texts (regenerate via pipeline)
+│   ├── degraded/                # 9,000 degraded samples
+│   └── scores/                  # Raw LLM scores (committed)
+│       ├── gpt5_mini_scores.json
+│       └── llm_scores_gemini.json
 └── output/
-    └── figures/              # Generated plots and statistics
-        ├── G1_dose_response.png
-        ├── G2_cross_axis.png
-        ├── G3_score_histograms.png
-        ├── G4_undegraded_dist.png
-        ├── G5_per_level_dist.png
-        ├── G6_boxplots_grid.png
-        ├── G7_violins.png
-        ├── G8_forest_plot.png
-        ├── G9_calibration.png
-        ├── G10_inter_model_scatter.png
-        ├── G11_paired_diff.png
-        ├── G12_rep_consistency.png
-        ├── G13_category_effects.png
-        └── G14_residuals.png
+    ├── analysis/                # Statistical results (JSON/CSV)
+    └── figures/                 # All 15 generated figures
 ```
 
 ---
@@ -479,19 +298,14 @@ No_One_Gets_an_A/
 pip install -r requirements.txt
 ```
 
-The lexical axis requires pre-trained GloVe word vectors (~2.2 GB):
-- Download [GloVe 840B 300d](https://nlp.stanford.edu/data/glove.840B.300d.zip)
-- Extract `glove.840B.300d.txt` into the `src/` directory
-
-NLTK resources are downloaded automatically on first run.
+The lexical axis requires [GloVe 840B 300d](https://nlp.stanford.edu/data/glove.840B.300d.zip) vectors (~2.2 GB). Extract `glove.840B.300d.txt` into `src/`. NLTK resources download automatically on first run.
 
 ### API Keys
 
 ```bash
 cp .env.example .env
-# Edit .env with your keys:
-#   OPENAI_API_KEY=sk-...
-#   GOOGLE_API_KEY=...
+# OPENAI_API_KEY=sk-...
+# GOOGLE_API_KEY=...
 ```
 
 ### Execution
@@ -501,11 +315,31 @@ cp .env.example .env
 python -m src.main
 
 # Individual steps
-python -m src.main --step corpus     # Fetch articles
-python -m src.main --step degrade    # Generate 9,000 degraded samples
-python -m src.main --step llm        # Score with LLMs
-python -m src.main --step analysis   # Generate figures
+python -m src.main --step corpus      # Fetch articles
+python -m src.main --step degrade     # Generate degraded samples
+python -m src.main --step llm         # Score with LLMs
+python -m src.main --step analysis    # Generate figures
 
 # Standalone graph generation (from existing data)
 python scripts/generate_graphs.py
 ```
+
+---
+
+## Citation
+
+If you use this work, please cite:
+
+```bibtex
+@article{aziz2026noone,
+  title={No One Gets an A: Distributional Bias in LLM Text Scoring},
+  author={Aziz, Idrees and Sadikhov, Mahir},
+  year={2026}
+}
+```
+
+---
+
+## License
+
+This project is released under the MIT License.
