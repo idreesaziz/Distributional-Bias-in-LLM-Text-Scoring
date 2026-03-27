@@ -20,6 +20,7 @@ Output:
 import json
 import sys
 import warnings
+import yaml
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -48,12 +49,15 @@ plt.rcParams.update({
     "font.size": 11, "axes.titlesize": 13, "axes.labelsize": 12,
     "legend.fontsize": 10, "figure.figsize": (10, 6),
 })
-COLORS = {"GPT-5 mini": "#2171b5", "Gemini 3 Flash": "#e6550d"}
+_FIXED_COLORS = {"gpt-5-mini": "#2171b5", "gemini-3-flash": "#e6550d"}
+_COLOR_PALETTE = ["#2ca02c", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"]
+COLORS = {}       # populated in main() after data load
 AXES_ORDER = ["grammar", "coherence", "information", "lexical"]
 AXIS_LABELS = {"grammar": "Grammar", "coherence": "Coherence",
                "information": "Information", "lexical": "Lexical"}
 LEVELS = [0.0, 0.2, 0.4, 0.6, 0.8]
-MODEL_NAMES = ["GPT-5 mini", "Gemini 3 Flash"]
+MODEL_NAMES = []  # populated in main() after data load
+MODEL_SIZE_B = {}  # model_name -> size in billions (local models only)
 
 RESULTS = {}  # collect all test results
 
@@ -63,13 +67,9 @@ RESULTS = {}  # collect all test results
 # ═══════════════════════════════════════════════════════════════
 
 def load_data():
-    """Build unified + paired DataFrames from raw JSON files."""
+    """Build unified + paired DataFrames from all score JSON files under data/scores/."""
     samples = json.load(open(ROOT / "data/degraded/degraded_samples.json",
                              encoding="utf-8"))
-    gpt = json.load(open(ROOT / "data/scores/gpt5_mini_scores.json",
-                         encoding="utf-8"))
-    gem = json.load(open(ROOT / "data/scores/llm_scores_gemini.json",
-                         encoding="utf-8"))
 
     meta = {}
     for s in samples:
@@ -82,30 +82,46 @@ def load_data():
             "article_length": len(s["original_text"]),
         }
 
+    # Discover all score files and group by model name (inferred from records)
+    scores_dir = ROOT / "data" / "scores"
+    all_scores = {}  # model_name -> list[dict]
+    for sf in sorted(scores_dir.glob("*.json")):
+        records = json.load(open(sf, encoding="utf-8"))
+        if not records:
+            continue
+        model_name = records[0]["model"]
+        all_scores[model_name] = records
+        print(f"  [load_data] {sf.name}: {len(records)} records ({model_name})")
+
     rows = []
-    for r in gpt:
-        m = meta[r["sample_id"]]
-        rows.append({**m, "sample_id": r["sample_id"],
-                     "model": "GPT-5 mini", "score": r["score"]})
-    for r in gem:
-        m = meta[r["sample_id"]]
-        rows.append({**m, "sample_id": r["sample_id"],
-                     "model": "Gemini 3 Flash", "score": r["score"]})
+    for model_name, records in all_scores.items():
+        for r in records:
+            sid = r["sample_id"]
+            if sid not in meta or r.get("score") is None:
+                continue
+            rows.append({**meta[sid], "sample_id": sid,
+                         "model": model_name, "score": r["score"]})
 
     df = pd.DataFrame(rows)
 
-    # Paired DataFrame (one row per sample, both model scores)
-    gpt_map = {r["sample_id"]: r["score"] for r in gpt}
-    gem_map = {r["sample_id"]: r["score"] for r in gem}
-    paired_rows = []
-    for sid, m in meta.items():
-        if sid in gpt_map and sid in gem_map:
-            paired_rows.append({
-                **m, "sample_id": sid,
-                "gpt_score": gpt_map[sid], "gemini_score": gem_map[sid],
-                "diff": gem_map[sid] - gpt_map[sid],
-            })
-    paired = pd.DataFrame(paired_rows)
+    # Paired DataFrame: GPT vs Gemini for backward-compatible inter-model tests
+    gpt_name = next((n for n in all_scores if "gpt" in n.lower()), None)
+    gem_name = next((n for n in all_scores if "gemini" in n.lower()), None)
+
+    paired = pd.DataFrame()
+    if gpt_name and gem_name:
+        gpt_map = {r["sample_id"]: r["score"] for r in all_scores[gpt_name]}
+        gem_map = {r["sample_id"]: r["score"] for r in all_scores[gem_name]}
+        paired_rows = []
+        for sid, m in meta.items():
+            if (sid in gpt_map and sid in gem_map
+                    and gpt_map[sid] is not None and gem_map[sid] is not None):
+                paired_rows.append({
+                    **m, "sample_id": sid,
+                    "gpt_score": gpt_map[sid], "gemini_score": gem_map[sid],
+                    "diff": gem_map[sid] - gpt_map[sid],
+                })
+        paired = pd.DataFrame(paired_rows)
 
     return df, paired
 
@@ -1307,21 +1323,111 @@ def graph_g14(df):
 
 
 # ═══════════════════════════════════════════════════════════════
+# G15: COMPRESSION RATIO VS MODEL SIZE
+# ═══════════════════════════════════════════════════════════════
+
+def graph_g15(df):
+    """G15: Compression ratio and sensitivity slope vs model size (local models)."""
+    header("G15: Compression ratio vs model size")
+
+    if not MODEL_SIZE_B:
+        print("  [SKIP] No model_size_b entries in config")
+        return
+
+    ideal_range = 8.0
+    points = []
+    for model in MODEL_NAMES:
+        if model not in MODEL_SIZE_B:
+            continue
+        sub = df[df["model"] == model]
+        if sub.empty:
+            continue
+        mean_0 = sub[sub["level"] == 0.0]["score"].mean()
+        mean_08 = sub[sub["level"] == 0.8]["score"].mean()
+        compression = (mean_0 - mean_08) / ideal_range
+        slopes = []
+        for axis in AXES_ORDER:
+            ax_sub = sub[sub["axis"] == axis]
+            if len(ax_sub) >= 2:
+                r = sp_stats.linregress(ax_sub["level"], ax_sub["score"])
+                slopes.append(r.slope)
+        if not slopes:
+            continue
+        points.append({
+            "model": model,
+            "size_b": MODEL_SIZE_B[model],
+            "compression": compression,
+            "avg_slope": float(np.mean(slopes)),
+        })
+
+    if len(points) < 2:
+        print("  [SKIP] Fewer than 2 local models scored — run scoring first")
+        return
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    for ax, metric, ylabel, title, refval, reflabel in [
+        (axes[0], "compression", "Compression Ratio",
+         "Compression Ratio vs Model Size", 1.0, "Perfect calibration (1.0)"),
+        (axes[1], "avg_slope", "Average Sensitivity Slope (β₁)",
+         "Sensitivity Slope vs Model Size", -10.0, "Perfect calibration (−10)"),
+    ]:
+        sizes = [p["size_b"] for p in points]
+        vals  = [p[metric] for p in points]
+        for p in points:
+            ax.scatter(p["size_b"], p[metric], s=130,
+                       color=COLORS.get(p["model"], "#555"), zorder=3)
+            ax.annotate(p["model"], (p["size_b"], p[metric]),
+                        textcoords="offset points", xytext=(6, 4), fontsize=8)
+        # Trend line when enough points
+        if len(points) >= 3:
+            z = np.polyfit(sizes, vals, 1)
+            xs = np.linspace(min(sizes), max(sizes), 100)
+            ax.plot(xs, np.poly1d(z)(xs), "--", color="gray", alpha=0.6, lw=1.5)
+        ax.axhline(refval, ls=":", color="gray", alpha=0.5, label=reflabel)
+        ax.set_xlabel("Model Size (B parameters)")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title, fontweight="bold")
+        ax.legend(fontsize=9)
+        ax.grid(True, alpha=0.3)
+
+    fig.suptitle("Compression Effect vs Model Scale (local models)",
+                 fontsize=14, fontweight="bold")
+    fig.tight_layout()
+    savefig(fig, "G15_compression_vs_size.png")
+
+
+# ═══════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════
 
 def main():
     print("=" * 64)
     print(" No One Gets an A — Comprehensive Analysis")
-    print(" 19 tests + 14 graphs")
+    print(" 19 tests + 15 graphs")
     print("=" * 64)
+
+    # ── Populate MODEL_NAMES, COLORS, MODEL_SIZE_B from config + data ──
+    cfg_path = ROOT / "config.yaml"
+    if cfg_path.exists():
+        cfg = yaml.safe_load(open(cfg_path, encoding="utf-8"))
+        for mc in cfg.get("llm_scoring", {}).get("models", []):
+            if "model_size_b" in mc:
+                MODEL_SIZE_B[mc["name"]] = mc["model_size_b"]
 
     # Load data
     print("\nLoading data...")
     df, paired = load_data()
+
+    discovered = sorted(df["model"].unique().tolist())
+    MODEL_NAMES.extend(discovered)
+    palette_iter = iter(_COLOR_PALETTE)
+    for name in MODEL_NAMES:
+        COLORS[name] = _FIXED_COLORS.get(name, next(palette_iter))
+
     print(f"  Unified DataFrame: {len(df)} rows")
     print(f"  Paired DataFrame:  {len(paired)} rows")
-    print(f"  Models: {df['model'].unique().tolist()}")
+    print(f"  Models: {MODEL_NAMES}")
     print(f"  Articles: {df['article'].nunique()}")
     print(f"  Categories: {df['category'].nunique()}")
 
@@ -1342,15 +1448,18 @@ def main():
     test_t8(df)
     test_t9(df)
     test_t10(df)
-    test_t11(paired)
-    test_t12(paired)
-    test_t13(paired)
+    if not paired.empty:
+        test_t11(paired)
+        test_t12(paired)
+        test_t13(paired)
     test_t14(df)
     test_t15(df)
     test_t16(df)
-    test_t17(df, paired)
+    if not paired.empty:
+        test_t17(df, paired)
     test_t18()
-    test_t19(paired)
+    if not paired.empty:
+        test_t19(paired)
 
     # ── PRIMARY OUTCOME SUMMARY ──
     header("PRIMARY OUTCOME SUMMARY")
@@ -1377,11 +1486,13 @@ def main():
     graph_g7(df)
     graph_g8(df)
     graph_g9(df)
-    graph_g10(paired)
-    graph_g11(paired)
+    if not paired.empty:
+        graph_g10(paired)
+        graph_g11(paired)
     graph_g12(df)
     graph_g13(df)
     graph_g14(df)
+    graph_g15(df)
 
     # ── SAVE RESULTS ──
     results_path = ANALYSIS_DIR / "results.json"
@@ -1406,7 +1517,7 @@ def main():
         print(f"  Summary saved to output/analysis/regression_summary.csv")
 
     print(f"\n{'═' * 64}")
-    print(f" DONE — {len(RESULTS)} tests completed, 14 figures saved")
+    print(f" DONE — {len(RESULTS)} tests completed, 15 figures saved")
     print(f"{'═' * 64}\n")
 
 

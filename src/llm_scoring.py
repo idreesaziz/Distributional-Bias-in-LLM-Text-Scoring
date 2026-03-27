@@ -68,11 +68,28 @@ def _flush_checkpoint(ckpt_path: Path, buffer: list[dict]):
 # ── API Call with Retry ──────────────────────────────────────────
 
 def _call_with_retry(provider: str, model_id: str, user_prompt: str,
-                     api_key: str | None = None) -> str:
+                     api_key: str | None = None,
+                     base_url: str = "http://localhost:11434",
+                     temperature: float = 0.0) -> str:
     """Call LLM with exponential backoff on transient errors."""
     for attempt in range(MAX_RETRIES):
         try:
-            if provider == "google":
+            if provider == "local":
+                import requests
+                payload = {
+                    "model": model_id,
+                    "prompt": f"{SYSTEM_PROMPT}\n\n{user_prompt}",
+                    "stream": False,
+                    "options": {"temperature": temperature},
+                }
+                resp = requests.post(
+                    f"{base_url}/api/generate",
+                    json=payload,
+                    timeout=300,
+                )
+                resp.raise_for_status()
+                return resp.json()["response"]
+            elif provider == "google":
                 from google import genai
                 from google.genai import types
                 client = genai.Client(api_key=api_key or os.environ["GOOGLE_API_KEY"])
@@ -142,8 +159,12 @@ def _score_model(samples: list[dict], model_cfg: dict,
         )
 
         try:
-            raw = _call_with_retry(provider, model_id, user_prompt,
-                                   api_key=api_key)
+            raw = _call_with_retry(
+                provider, model_id, user_prompt,
+                api_key=api_key,
+                base_url=model_cfg.get("base_url", "http://localhost:11434"),
+                temperature=model_cfg.get("temperature", 0.0),
+            )
             score = parse_score(raw)
             entry = {
                 "sample_id": sample["id"],

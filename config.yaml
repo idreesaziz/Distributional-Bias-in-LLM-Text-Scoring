@@ -342,6 +342,40 @@ llm_scoring:
   - name: gemini-3-flash
     provider: google
     model_id: gemini-3-flash-preview
+  # ── Local models via Ollama (run: ollama pull <model_id>) ──────────────────
+  # Ollama handles GPU/CPU offloading automatically based on available VRAM.
+  # With 12 GB VRAM, 32B Q4_K_M will offload most layers to CPU — expect
+  # slower throughput; checkpointing every 5 samples handles interruptions.
+  - name: deepseek-r1-7b
+    provider: local
+    model_id: deepseek-r1:7b
+    model_size_b: 7
+    base_url: http://localhost:11434
+    temperature: 0.0
+  - name: deepseek-r1-14b
+    provider: local
+    model_id: deepseek-r1:14b
+    model_size_b: 14
+    base_url: http://localhost:11434
+    temperature: 0.0
+  - name: deepseek-r1-32b
+    provider: local
+    model_id: deepseek-r1:32b
+    model_size_b: 32
+    base_url: http://localhost:11434
+    temperature: 0.0
+  - name: llama3.1-8b
+    provider: local
+    model_id: llama3.1:8b
+    model_size_b: 8
+    base_url: http://localhost:11434
+    temperature: 0.0
+  - name: llama3.2-3b
+    provider: local
+    model_id: llama3.2:3b
+    model_size_b: 3
+    base_url: http://localhost:11434
+    temperature: 0.0
   conditions:
   - isolated
   scale_min: 0
