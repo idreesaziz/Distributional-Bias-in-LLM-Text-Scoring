@@ -22,7 +22,6 @@ seaborn>=0.12.0
 # LLM API clients
 openai>=1.0.0
 google-genai>=1.0.0
-requests>=2.31.0
 
 # Wikipedia corpus
 wikipedia-api>=0.6.0

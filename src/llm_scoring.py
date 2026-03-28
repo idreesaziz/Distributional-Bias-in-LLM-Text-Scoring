@@ -8,6 +8,7 @@ Standard API for both Google and OpenAI, with:
 """
 
 import json
+import math
 import os
 import re
 import time
@@ -19,6 +20,8 @@ from tqdm import tqdm
 load_dotenv()
 
 SYSTEM_PROMPT = "Rate the quality of the following text from 0 to 10. Respond with ONLY the number."
+
+_SCORE_TOKENS = frozenset({"0","1","2","3","4","5","6","7","8","9","10"})
 
 CHECKPOINT_EVERY = 5
 MAX_RETRIES = 5
@@ -70,25 +73,54 @@ def _flush_checkpoint(ckpt_path: Path, buffer: list[dict]):
 def _call_with_retry(provider: str, model_id: str, user_prompt: str,
                      api_key: str | None = None,
                      base_url: str = "http://localhost:11434",
-                     temperature: float = 0.0) -> str:
-    """Call LLM with exponential backoff on transient errors."""
+                     temperature: float = 0.0) -> tuple[str, dict | None]:
+    """Call LLM with exponential backoff. Returns (raw_text, score_probs).
+
+    score_probs is a {0..10 -> float} normalised probability dict for local
+    models (via Ollama logprobs), None for API providers.
+    """
     for attempt in range(MAX_RETRIES):
         try:
             if provider == "local":
-                import requests
-                payload = {
-                    "model": model_id,
-                    "prompt": f"{SYSTEM_PROMPT}\n\n{user_prompt}",
-                    "stream": False,
-                    "options": {"temperature": temperature},
-                }
-                resp = requests.post(
-                    f"{base_url}/api/generate",
-                    json=payload,
-                    timeout=300,
+                from openai import OpenAI as _OpenAI
+                client = _OpenAI(
+                    base_url=f"{base_url}/v1",
+                    api_key="ollama",
                 )
-                resp.raise_for_status()
-                return resp.json()["response"]
+                response = client.chat.completions.create(
+                    model=model_id,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=temperature,
+                    max_tokens=10,
+                    logprobs=True,
+                    top_logprobs=20,
+                )
+                raw_text = response.choices[0].message.content or ""
+
+                # Extract probability distribution over score tokens
+                score_probs = None
+                lp = response.choices[0].logprobs
+                if lp and lp.content:
+                    raw_probs = {}
+                    first = lp.content[0]
+                    # Chosen token
+                    tok = first.token.strip()
+                    if tok in _SCORE_TOKENS:
+                        raw_probs[int(tok)] = math.exp(first.logprob)
+                    # Alternatives
+                    for alt in first.top_logprobs:
+                        tok = alt.token.strip()
+                        if tok in _SCORE_TOKENS:
+                            raw_probs[int(tok)] = math.exp(alt.logprob)
+                    total = sum(raw_probs.values())
+                    if total > 0:
+                        score_probs = {i: round(raw_probs.get(i, 0.0) / total, 6)
+                                       for i in range(11)}
+
+                return raw_text, score_probs
             elif provider == "google":
                 from google import genai
                 from google.genai import types
@@ -104,7 +136,7 @@ def _call_with_retry(provider: str, model_id: str, user_prompt: str,
                         ),
                     ),
                 )
-                return response.text
+                return response.text, None
             elif provider == "openai":
                 from openai import OpenAI
                 client = OpenAI(api_key=api_key or os.environ["OPENAI_API_KEY"])
@@ -116,7 +148,7 @@ def _call_with_retry(provider: str, model_id: str, user_prompt: str,
                     ],
                     max_completion_tokens=1024,
                 )
-                return response.choices[0].message.content
+                return response.choices[0].message.content, None
         except Exception as e:
             err = str(e).lower()
             transient = any(k in err for k in
@@ -172,8 +204,9 @@ def _score_model(samples: list[dict], model_cfg: dict,
                 "condition": "isolated",
                 "repetition": 0,
                 "score": score,
-                "raw_response": raw,
-                **({"parse_error": True} if score is None else {}),
+                "raw_response": raw,                **({
+                    "score_probs": score_probs
+                } if score_probs is not None else {}),                **({"parse_error": True} if score is None else {}),
             }
         except Exception as e:
             entry = {

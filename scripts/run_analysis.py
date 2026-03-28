@@ -18,6 +18,7 @@ Output:
 """
 
 import json
+import math
 import sys
 import warnings
 import yaml
@@ -123,7 +124,36 @@ def load_data():
                 })
         paired = pd.DataFrame(paired_rows)
 
-    return df, paired
+    # ── Build logprob DataFrame (local models only) ───────────
+    lp_rows = []
+    for model_name, records in all_scores.items():
+        for r in records:
+            sp = r.get("score_probs")
+            if not sp:
+                continue
+            sid = r["sample_id"]
+            if sid not in meta:
+                continue
+            m = meta[sid]
+            sp_int = {int(k): float(v) for k, v in sp.items()}
+            h = 0.0
+            for p in sp_int.values():
+                if p > 0:
+                    h -= p * math.log2(p)
+            lp_rows.append({
+                "sample_id": sid,
+                "model": model_name,
+                "axis": m["axis"],
+                "level": m["level"],
+                "entropy": h,
+                "p_boundary": sp_int.get(0, 0.0) + sp_int.get(10, 0.0),
+                "p_0": sp_int.get(0, 0.0),
+                "p_10": sp_int.get(10, 0.0),
+                **{f"p_{i}": sp_int.get(i, 0.0) for i in range(11)},
+            })
+    lp_df = pd.DataFrame(lp_rows) if lp_rows else pd.DataFrame()
+
+    return df, paired, lp_df
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1323,6 +1353,93 @@ def graph_g14(df):
 
 
 # ═══════════════════════════════════════════════════════════════
+# T20: LOGPROB ENTROPY VS DEGRADATION LEVEL
+# ═══════════════════════════════════════════════════════════════
+
+def test_t20(lp_df):
+    header("T20: Logprob Entropy vs Degradation Level (local models)")
+    if lp_df.empty:
+        print("  [SKIP] No logprob data available")
+        return
+    res = {}
+    for model in sorted(lp_df["model"].unique()):
+        sub = lp_df[lp_df["model"] == model]
+        print(f"\n  {model}:")
+        level_entropies = {}
+        for lv in LEVELS:
+            lv_sub = sub[sub["level"] == lv]
+            if lv_sub.empty:
+                continue
+            mean_h = float(lv_sub["entropy"].mean())
+            std_h = float(lv_sub["entropy"].std())
+            level_entropies[str(lv)] = {"mean": mean_h, "std": std_h}
+            print(f"    Level {lv:.1f}: entropy = {mean_h:.3f} ± {std_h:.3f}")
+
+        if len(sub) >= 2:
+            tau, p = sp_stats.kendalltau(sub["level"], sub["entropy"])
+            res[model] = {
+                "level_entropies": level_entropies,
+                "kendall_tau": float(tau),
+                "p_value": float(p),
+            }
+            print(f"    Kendall's τ (level vs entropy): {tau:+.3f}  p={p:.2e}")
+    RESULTS["T20"] = res
+
+
+# ═══════════════════════════════════════════════════════════════
+# T21: BOUNDARY PROBABILITY MASS P(0)+P(10)
+# ═══════════════════════════════════════════════════════════════
+
+def test_t21(lp_df):
+    header("T21: Boundary Probability Mass P(0)+P(10) (local models)")
+    if lp_df.empty:
+        print("  [SKIP] No logprob data available")
+        return
+    res = {}
+    for model in sorted(lp_df["model"].unique()):
+        sub = lp_df[lp_df["model"] == model]
+        print(f"\n  {model}:")
+
+        mean_pb = float(sub["p_boundary"].mean())
+        mean_p0 = float(sub["p_0"].mean())
+        mean_p10 = float(sub["p_10"].mean())
+        print(f"    Overall: P(0)={mean_p0:.4f}  P(10)={mean_p10:.4f}  "
+              f"P(boundary)={mean_pb:.4f}")
+
+        level_data = {}
+        for lv in LEVELS:
+            lv_sub = sub[sub["level"] == lv]
+            if lv_sub.empty:
+                continue
+            level_data[str(lv)] = {
+                "p_0": float(lv_sub["p_0"].mean()),
+                "p_10": float(lv_sub["p_10"].mean()),
+                "p_boundary": float(lv_sub["p_boundary"].mean()),
+            }
+            print(f"    Level {lv:.1f}: P(0)={lv_sub['p_0'].mean():.4f}  "
+                  f"P(10)={lv_sub['p_10'].mean():.4f}  "
+                  f"P(boundary)={lv_sub['p_boundary'].mean():.4f}")
+
+        info = {
+            "overall_p_boundary": mean_pb,
+            "overall_p_0": mean_p0,
+            "overall_p_10": mean_p10,
+            "level_data": level_data,
+        }
+        max_deg = sub[sub["level"] == 0.8]
+        no_deg = sub[sub["level"] == 0.0]
+        if not max_deg.empty:
+            info["p0_at_max_degradation"] = float(max_deg["p_0"].mean())
+            print(f"    ⇒ P(0) at max degradation (λ=0.8): {max_deg['p_0'].mean():.4f}")
+        if not no_deg.empty:
+            info["p10_at_no_degradation"] = float(no_deg["p_10"].mean())
+            print(f"    ⇒ P(10) at no degradation (λ=0.0): {no_deg['p_10'].mean():.4f}")
+
+        res[model] = info
+    RESULTS["T21"] = res
+
+
+# ═══════════════════════════════════════════════════════════════
 # G15: COMPRESSION RATIO VS MODEL SIZE
 # ═══════════════════════════════════════════════════════════════
 
@@ -1398,13 +1515,169 @@ def graph_g15(df):
 
 
 # ═══════════════════════════════════════════════════════════════
+# G16: SCORE PROBABILITY HEATMAP
+# ═══════════════════════════════════════════════════════════════
+
+def graph_g16(lp_df):
+    """G16: Score probability heatmap by degradation level (per local model)."""
+    header("G16: Score probability heatmap")
+    if lp_df.empty:
+        print("  [SKIP] No logprob data available")
+        return
+
+    models = sorted(lp_df["model"].unique())
+    n_models = len(models)
+    fig, axes = plt.subplots(1, n_models, figsize=(5 * n_models, 5),
+                             squeeze=False)
+
+    for j, model in enumerate(models):
+        ax = axes[0, j]
+        sub = lp_df[lp_df["model"] == model]
+        mat = np.zeros((len(LEVELS), 11))
+        for li, lv in enumerate(LEVELS):
+            lv_sub = sub[sub["level"] == lv]
+            if lv_sub.empty:
+                continue
+            for si in range(11):
+                mat[li, si] = lv_sub[f"p_{si}"].mean()
+
+        im = ax.imshow(mat, cmap="YlOrRd", aspect="auto", vmin=0)
+        ax.set_xticks(range(11))
+        ax.set_xticklabels(range(11))
+        ax.set_yticks(range(len(LEVELS)))
+        ax.set_yticklabels([f"{lv:.1f}" for lv in LEVELS])
+        ax.set_xlabel("Score")
+        ax.set_ylabel("Degradation Level")
+        ax.set_title(model, fontweight="bold")
+
+        for li in range(len(LEVELS)):
+            for si in range(11):
+                val = mat[li, si]
+                color = "white" if val > mat.max() * 0.5 else "black"
+                ax.text(si, li, f"{val:.2f}", ha="center", va="center",
+                        fontsize=7, color=color)
+        plt.colorbar(im, ax=ax, shrink=0.8, label="Mean P(score)")
+
+    fig.suptitle("Score Probability Distribution by Degradation Level",
+                 fontsize=14, fontweight="bold")
+    fig.tight_layout()
+    savefig(fig, "G16_score_prob_heatmap.png")
+
+
+# ═══════════════════════════════════════════════════════════════
+# G17: ENTROPY VS DEGRADATION LEVEL
+# ═══════════════════════════════════════════════════════════════
+
+def graph_g17(lp_df):
+    """G17: Entropy of score distribution vs degradation level."""
+    header("G17: Entropy vs degradation level")
+    if lp_df.empty:
+        print("  [SKIP] No logprob data available")
+        return
+
+    models = sorted(lp_df["model"].unique())
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    palette_iter = iter(_COLOR_PALETTE)
+    for model in models:
+        sub = lp_df[lp_df["model"] == model]
+        color = COLORS.get(model, next(palette_iter))
+        means, lo, hi = [], [], []
+        for lv in LEVELS:
+            lv_sub = sub[sub["level"] == lv]["entropy"]
+            if lv_sub.empty:
+                means.append(np.nan)
+                lo.append(np.nan)
+                hi.append(np.nan)
+                continue
+            m = lv_sub.mean()
+            se = lv_sub.std() / np.sqrt(len(lv_sub))
+            means.append(m)
+            lo.append(m - 1.96 * se)
+            hi.append(m + 1.96 * se)
+        ax.plot(LEVELS, means, "o-", label=model, color=color, lw=2, ms=6)
+        ax.fill_between(LEVELS, lo, hi, alpha=0.15, color=color)
+
+    max_entropy = math.log2(11)
+    ax.axhline(max_entropy, ls=":", color="gray", alpha=0.5,
+               label=f"Max entropy ({max_entropy:.2f} bits)")
+
+    ax.set_xlabel("Degradation Level")
+    ax.set_ylabel("Shannon Entropy (bits)")
+    ax.set_title("Score Distribution Entropy vs Degradation Level",
+                 fontweight="bold")
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    savefig(fig, "G17_entropy_vs_level.png")
+
+
+# ═══════════════════════════════════════════════════════════════
+# G18: BOUNDARY MASS VS MODEL SIZE
+# ═══════════════════════════════════════════════════════════════
+
+def graph_g18(lp_df):
+    """G18: Boundary probability mass P(0)+P(10) vs model size."""
+    header("G18: Boundary mass vs model size")
+    if lp_df.empty or not MODEL_SIZE_B:
+        print("  [SKIP] No logprob data or model size metadata")
+        return
+
+    models = sorted(lp_df["model"].unique())
+    models_with_size = [m for m in models if m in MODEL_SIZE_B]
+    if len(models_with_size) < 2:
+        print("  [SKIP] Fewer than 2 local models with size metadata")
+        return
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Panel 1: P(0) at max degradation vs model size
+    ax = axes[0]
+    for model in models_with_size:
+        sub = lp_df[(lp_df["model"] == model) & (lp_df["level"] == 0.8)]
+        if sub.empty:
+            continue
+        size = MODEL_SIZE_B[model]
+        p0 = sub["p_0"].mean()
+        ax.scatter(size, p0, s=130, color=COLORS.get(model, "#555"), zorder=3)
+        ax.annotate(model, (size, p0), textcoords="offset points",
+                    xytext=(6, 4), fontsize=8)
+    ax.set_xlabel("Model Size (B parameters)")
+    ax.set_ylabel("Mean P(score=0)")
+    ax.set_title("P(0) at Max Degradation (λ=0.8)", fontweight="bold")
+    ax.grid(True, alpha=0.3)
+
+    # Panel 2: P(10) at no degradation vs model size
+    ax = axes[1]
+    for model in models_with_size:
+        sub = lp_df[(lp_df["model"] == model) & (lp_df["level"] == 0.0)]
+        if sub.empty:
+            continue
+        size = MODEL_SIZE_B[model]
+        p10 = sub["p_10"].mean()
+        ax.scatter(size, p10, s=130, color=COLORS.get(model, "#555"), zorder=3)
+        ax.annotate(model, (size, p10), textcoords="offset points",
+                    xytext=(6, 4), fontsize=8)
+    ax.set_xlabel("Model Size (B parameters)")
+    ax.set_ylabel("Mean P(score=10)")
+    ax.set_title("P(10) at No Degradation (λ=0.0)", fontweight="bold")
+    ax.grid(True, alpha=0.3)
+
+    fig.suptitle("Does the Model 'Know' the Extreme Scores? "
+                 "Boundary Probability vs Scale",
+                 fontsize=13, fontweight="bold")
+    fig.tight_layout()
+    savefig(fig, "G18_boundary_mass_vs_size.png")
+
+
+# ═══════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════
 
 def main():
     print("=" * 64)
     print(" No One Gets an A — Comprehensive Analysis")
-    print(" 19 tests + 15 graphs")
+    print(" 21 tests + 18 graphs")
     print("=" * 64)
 
     # ── Populate MODEL_NAMES, COLORS, MODEL_SIZE_B from config + data ──
@@ -1417,7 +1690,7 @@ def main():
 
     # Load data
     print("\nLoading data...")
-    df, paired = load_data()
+    df, paired, lp_df = load_data()
 
     discovered = sorted(df["model"].unique().tolist())
     MODEL_NAMES.extend(discovered)
@@ -1427,6 +1700,7 @@ def main():
 
     print(f"  Unified DataFrame: {len(df)} rows")
     print(f"  Paired DataFrame:  {len(paired)} rows")
+    print(f"  Logprob DataFrame: {len(lp_df)} rows")
     print(f"  Models: {MODEL_NAMES}")
     print(f"  Articles: {df['article'].nunique()}")
     print(f"  Categories: {df['category'].nunique()}")
@@ -1460,6 +1734,8 @@ def main():
     test_t18()
     if not paired.empty:
         test_t19(paired)
+    test_t20(lp_df)
+    test_t21(lp_df)
 
     # ── PRIMARY OUTCOME SUMMARY ──
     header("PRIMARY OUTCOME SUMMARY")
@@ -1493,6 +1769,9 @@ def main():
     graph_g13(df)
     graph_g14(df)
     graph_g15(df)
+    graph_g16(lp_df)
+    graph_g17(lp_df)
+    graph_g18(lp_df)
 
     # ── SAVE RESULTS ──
     results_path = ANALYSIS_DIR / "results.json"
@@ -1517,7 +1796,7 @@ def main():
         print(f"  Summary saved to output/analysis/regression_summary.csv")
 
     print(f"\n{'═' * 64}")
-    print(f" DONE — {len(RESULTS)} tests completed, 15 figures saved")
+    print(f" DONE — {len(RESULTS)} tests completed, 18 figures saved")
     print(f"{'═' * 64}\n")
 
 
