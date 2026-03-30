@@ -191,7 +191,8 @@ def _score_model(samples: list[dict], model_cfg: dict,
         )
 
         try:
-            raw = _call_with_retry(
+            # Unpack both raw and score_probs here
+            raw, score_probs = _call_with_retry(
                 provider, model_id, user_prompt,
                 api_key=api_key,
                 base_url=model_cfg.get("base_url", "http://localhost:11434"),
@@ -226,7 +227,7 @@ def _score_model(samples: list[dict], model_cfg: dict,
             _flush_checkpoint(ckpt, buffer)
             buffer.clear()
 
-        time.sleep(0.3)
+        time.sleep(0.1)
 
     if buffer:
         _flush_checkpoint(ckpt, buffer)

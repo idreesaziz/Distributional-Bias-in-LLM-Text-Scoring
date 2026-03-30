@@ -64,26 +64,26 @@ def run_pipeline(config: dict, step: str | None = None):
         with open(deg_path, "r", encoding="utf-8") as f:
             samples = json.load(f)
 
-    # Step 3: Quality Scoring
-    if run_all or step == "quality":
-        print("=" * 60)
-        print("STEP 3: Quality Function (Q) Computation")
-        print("=" * 60)
-        scored_samples = quality.run(config, samples)
-        print(f"  → {len(scored_samples)} samples scored\n")
-    else:
-        import json
-        from pathlib import Path
-        q_path = Path(config["quality"]["output_dir"]) / "scored_samples.json"
-        with open(q_path, "r", encoding="utf-8") as f:
-            scored_samples = json.load(f)
+    # # Step 3: Quality Scoring
+    # if run_all or step == "quality":
+    #     print("=" * 60)
+    #     print("STEP 3: Quality Function (Q) Computation")
+    #     print("=" * 60)
+    #     scored_samples = quality.run(config, samples)
+    #     print(f"  → {len(scored_samples)} samples scored\n")
+    # else:
+    #     import json
+    #     from pathlib import Path
+    #     q_path = Path(config["quality"]["output_dir"]) / "scored_samples.json"
+    #     with open(q_path, "r", encoding="utf-8") as f:
+    #         scored_samples = json.load(f)
 
     # Step 4: LLM Scoring
     if run_all or step == "llm":
         print("=" * 60)
         print("STEP 4: LLM Scoring")
         print("=" * 60)
-        llm_results = llm_scoring.run(config, scored_samples)
+        llm_results = llm_scoring.run(config, samples)
         print(f"  → {len(llm_results)} LLM ratings collected\n")
     else:
         import json
