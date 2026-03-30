@@ -238,36 +238,41 @@ def _score_model(samples: list[dict], model_cfg: dict,
 
 # ── Main Runner ─────────────────────────────────────────────────
 
+def _model_output_path(output_dir: Path, model_name: str) -> Path:
+    safe = model_name.replace(" ", "_").replace("/", "_").replace(":", "_")
+    return output_dir / f"{safe}_scores.json"
+
+
 def run(config: dict, samples: list[dict]) -> list[dict]:
-    """Run LLM scoring across all models."""
+    """Run LLM scoring across all models, saving per-model score files."""
     llm_cfg = config["llm_scoring"]
     output_dir = Path(llm_cfg["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    output_file = output_dir / "llm_scores.json"
-    if output_file.exists():
-        print("[LLM Scoring] Loading existing LLM scores...")
-        with open(output_file, "r", encoding="utf-8") as f:
-            return json.load(f)
 
     all_results = []
 
     for model_cfg in llm_cfg["models"]:
         model_name = model_cfg["name"]
         provider = model_cfg["provider"]
+        model_file = _model_output_path(output_dir, model_name)
+
+        if model_file.exists():
+            print(f"[LLM Scoring] {model_name}: already done → {model_file.name}")
+            with open(model_file, "r", encoding="utf-8") as f:
+                all_results.extend(json.load(f))
+            continue
 
         print(f"[LLM Scoring] {model_name} ({provider})")
         results = _score_model(samples, model_cfg, output_dir)
         all_results.extend(results)
 
-    # Save final
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(all_results, f, indent=2, ensure_ascii=False)
-    print(f"[LLM Scoring] Saved {len(all_results)} ratings to {output_file}")
+        # Save per-model file
+        with open(model_file, "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2, ensure_ascii=False)
+        print(f"  → Saved {len(results)} ratings to {model_file.name}")
 
-    # Clean up checkpoint files
-    for model_cfg in llm_cfg["models"]:
-        ckpt = _checkpoint_path(output_dir, model_cfg["name"])
+        # Clean up checkpoint
+        ckpt = _checkpoint_path(output_dir, model_name)
         if ckpt.exists():
             ckpt.unlink()
             print(f"  [Cleanup] Removed {ckpt.name}")
