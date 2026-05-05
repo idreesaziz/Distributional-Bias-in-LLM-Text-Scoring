@@ -1,74 +1,74 @@
 {
   "GPT-5 mini": {
     "raw": {
-      "kendall_tau": 0.6234,
-      "spearman_rho": 0.7336,
-      "rmse": 2.5595,
-      "compression_ratio": 0.6915
+      "kendall_tau": 0.6292,
+      "spearman_rho": 0.7407,
+      "rmse": 2.5095,
+      "compression_ratio": 0.7059
     },
     "affine": {
-      "kendall_tau": 0.6234,
-      "spearman_rho": 0.7336,
-      "rmse": 1.8658,
-      "compression_ratio": 0.5865,
+      "kendall_tau": 0.6292,
+      "spearman_rho": 0.7407,
+      "rmse": 1.8781,
+      "compression_ratio": 0.6038,
       "params": {
-        "a": 0.8481,
-        "b": 2.3238
+        "a": 0.8553,
+        "b": 2.3158
       }
     },
     "sigmoid": {
-      "kendall_tau": 0.6234,
-      "spearman_rho": 0.7336,
-      "rmse": 1.8665,
-      "compression_ratio": 0.5862,
+      "kendall_tau": 0.6292,
+      "spearman_rho": 0.7407,
+      "rmse": 1.8792,
+      "compression_ratio": 0.6031,
       "params": {
-        "a": 0.1146,
-        "b": 6.074,
+        "a": 0.1153,
+        "b": 5.35,
         "c": 30.0,
-        "d": -7.5308
+        "d": -8.1093
       }
     },
     "isotonic": {
-      "kendall_tau": 0.6272,
-      "spearman_rho": 0.7334,
-      "rmse": 1.8708,
-      "compression_ratio": 0.6004
+      "kendall_tau": 0.6292,
+      "spearman_rho": 0.7407,
+      "rmse": 1.853,
+      "compression_ratio": 0.6276
     }
   },
   "Gemini 3 Flash": {
     "raw": {
-      "kendall_tau": 0.7275,
-      "spearman_rho": 0.8208,
-      "rmse": 1.8193,
-      "compression_ratio": 0.6284
+      "kendall_tau": 0.6841,
+      "spearman_rho": 0.7818,
+      "rmse": 1.9368,
+      "compression_ratio": 0.6014
     },
     "affine": {
-      "kendall_tau": 0.7275,
-      "spearman_rho": 0.8208,
-      "rmse": 1.6019,
-      "compression_ratio": 0.6648,
+      "kendall_tau": 0.6841,
+      "spearman_rho": 0.7818,
+      "rmse": 1.7364,
+      "compression_ratio": 0.6453,
       "params": {
-        "a": 1.058,
-        "b": 0.4707
+        "a": 1.0729,
+        "b": 0.3885
       }
     },
     "sigmoid": {
-      "kendall_tau": 0.7275,
-      "spearman_rho": 0.8208,
-      "rmse": 1.6044,
-      "compression_ratio": 0.6651,
+      "kendall_tau": 0.6841,
+      "spearman_rho": 0.7818,
+      "rmse": 1.7378,
+      "compression_ratio": 0.6448,
       "params": {
-        "a": 0.1444,
-        "b": 7.1362,
+        "a": 0.1454,
+        "b": 6.4541,
         "c": 30.0,
-        "d": -6.9843
+        "d": -7.6927
       }
     },
     "isotonic": {
-      "kendall_tau": 0.7275,
-      "spearman_rho": 0.8208,
-      "rmse": 1.5863,
-      "compression_ratio": 0.6783
+      "kendall_tau": 0.6841,
+      "spearman_rho": 0.7818,
+      "rmse": 1.726,
+      "compression_ratio": 0.6532
     }
   }
 }

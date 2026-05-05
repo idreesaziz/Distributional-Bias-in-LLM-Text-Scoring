@@ -798,14 +798,14 @@ AXIS_FUNCTIONS = {
 }
 
 
-def make_seed(article_title: str, axis: str, level: float, rep: int) -> int:
+def make_seed(article_key: str, axis: str, level: float, rep: int) -> int:
     """
     FIX 1: Deterministic seed via hashlib.md5.
     Python's built-in hash() is session-randomised (PYTHONHASHSEED) since
     Python 3.3, so identical inputs produce different seeds across runs.
     MD5 is stable across machines, OS versions, and Python versions.
     """
-    key = f"{article_title}_{axis}_{level}_{rep}"
+    key = f"{article_key}_{axis}_{level}_{rep}"
     return int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16) % (2**31)
 
 
@@ -844,7 +844,8 @@ def run(config: dict, corpus: list[dict]) -> list[dict]:
             for axis in axes:
                 for level in levels:
                     for rep in range(spl):
-                        seed = make_seed(article["title"], axis, level, rep)
+                        article_key = article.get("url") or article.get("title") or str(a_idx)
+                        seed = make_seed(str(article_key), axis, level, rep)
 
                         # level 0.0 → original text unchanged (no corruption)
                         if level == 0.0:
@@ -854,7 +855,9 @@ def run(config: dict, corpus: list[dict]) -> list[dict]:
 
                         all_samples.append({
                             "id":            sample_id,
+                            "source_article_id": a_idx,
                             "source_title":  article["title"],
+                            "source_url":    article.get("url"),
                             "category":      article.get("category", "uncategorized"),
                             "axis":          axis,
                             "level":         level,

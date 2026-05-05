@@ -1,8 +1,8 @@
 method,model_set,n_models,mean_spearman_rho,mean_compression_ratio,mean_pairwise_accuracy,mean_wasserstein,mean_dose_response_slope
 asymmetry_fix_alpha=0.0,all_11,9,0.4903,0.5792,0.6492,2.8328,-2.2366
 asymmetry_fix_alpha=0.0,logprob_9,9,0.4903,0.5792,0.6492,2.8328,-2.2366
-aux_best,all_11,9,0.4959,0.9192,0.7022,1.4967,-4.1183
-aux_best,logprob_9,9,0.4959,0.9192,0.7022,1.4967,-4.1183
+aux_best,all_11,9,0.5157,0.9335,0.7108,1.4584,-4.2644
+aux_best,logprob_9,9,0.5157,0.9335,0.7108,1.4584,-4.2644
 contrastive_anchor_A,all_11,2,0.7272,0.75,0.7556,1.5132,-5.8032
 contrastive_anchor_A,api_2,2,0.7272,0.75,0.7556,1.5132,-5.8032
 expected_score,all_11,9,0.4903,0.5792,0.6492,2.8328,-2.2366

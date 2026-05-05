@@ -24,12 +24,14 @@ scores = json.load(open("data/scores/gpt5_mini_scores.json", "r", encoding="utf-
 score_map = {s["sample_id"]: s["score"] for s in scores}
 
 rows = []
+samples_per_article = len({s["axis"] for s in samples}) * len({s["level"] for s in samples}) * len({s.get("repetition", 0) for s in samples})
 for s in samples:
     sid = s["id"]
     if sid not in score_map or score_map[sid] is None:
         continue
     rows.append({
         "id": sid,
+        "source_article_id": sid // samples_per_article,
         "source_title": s["source_title"],
         "axis": s["axis"],
         "level": s["level"],
@@ -41,7 +43,7 @@ df = pd.DataFrame(rows)
 print(f"Loaded {len(df)} data points")
 print(f"Axes: {sorted(df['axis'].unique())}")
 print(f"Levels: {sorted(df['level'].unique())}")
-print(f"Articles: {df['source_title'].nunique()}")
+print(f"Articles: {df['source_article_id'].nunique()}")
 
 out = Path("output/figures")
 out.mkdir(parents=True, exist_ok=True)
@@ -91,9 +93,9 @@ for i, axis in enumerate(["grammar", "coherence", "information", "lexical"]):
 
 fig.suptitle("Dose-Response: Degradation Level vs LLM Score", fontsize=16, fontweight="bold", y=1.02)
 fig.tight_layout()
-fig.savefig(out / "dose_response_per_axis.png", dpi=200, bbox_inches="tight")
+fig.savefig(out / "dose_response_per_axis.svg", bbox_inches="tight")
 plt.close(fig)
-print("  [1/8] dose_response_per_axis.png")
+print("  [1/8] dose_response_per_axis.svg")
 
 
 # =====================================================================
@@ -119,9 +121,9 @@ ax.set_ylim(-0.5, 10.5)
 ax.set_xticks(LEVELS)
 ax.axhline(y=5, color="gray", linestyle=":", alpha=0.5)
 fig.tight_layout()
-fig.savefig(out / "cross_axis_comparison.png", dpi=200)
+fig.savefig(out / "cross_axis_comparison.svg")
 plt.close(fig)
-print("  [2/8] cross_axis_comparison.png")
+print("  [2/8] cross_axis_comparison.svg")
 
 
 # =====================================================================
@@ -142,9 +144,9 @@ ax.set_ylabel("Count", fontsize=13)
 ax.set_title("Score Distribution: GPT-5 mini (n=9,000)", fontsize=15, fontweight="bold")
 ax.set_xticks(range(0, 11))
 fig.tight_layout()
-fig.savefig(out / "score_distribution.png", dpi=200)
+fig.savefig(out / "score_distribution.svg")
 plt.close(fig)
-print("  [3/8] score_distribution.png")
+print("  [3/8] score_distribution.svg")
 
 
 # =====================================================================
@@ -165,9 +167,9 @@ for i, axis in enumerate(["grammar", "coherence", "information", "lexical"]):
 
 fig.suptitle("Score Distributions by Degradation Level", fontsize=16, fontweight="bold", y=1.02)
 fig.tight_layout()
-fig.savefig(out / "boxplots_per_axis.png", dpi=200, bbox_inches="tight")
+fig.savefig(out / "boxplots_per_axis.svg", bbox_inches="tight")
 plt.close(fig)
-print("  [4/8] boxplots_per_axis.png")
+print("  [4/8] boxplots_per_axis.svg")
 
 
 # =====================================================================
@@ -182,9 +184,9 @@ ax.set_title("Score Compression Across Axes", fontsize=15, fontweight="bold")
 ax.legend(title="Axis", labels=[AXIS_LABELS[a] for a in sorted(df["axis"].unique())])
 ax.set_ylim(-0.5, 10.5)
 fig.tight_layout()
-fig.savefig(out / "violin_compression.png", dpi=200)
+fig.savefig(out / "violin_compression.svg")
 plt.close(fig)
-print("  [5/8] violin_compression.png")
+print("  [5/8] violin_compression.svg")
 
 
 # =====================================================================
@@ -200,9 +202,9 @@ ax.set_xlabel("Degradation Level", fontsize=13)
 ax.set_ylabel("Axis", fontsize=13)
 ax.set_title("Mean LLM Score Heatmap", fontsize=15, fontweight="bold")
 fig.tight_layout()
-fig.savefig(out / "heatmap_scores.png", dpi=200)
+fig.savefig(out / "heatmap_scores.svg")
 plt.close(fig)
-print("  [6/8] heatmap_scores.png")
+print("  [6/8] heatmap_scores.svg")
 
 
 # =====================================================================
@@ -226,9 +228,9 @@ ax.set_xticks(range(0, 11))
 ax.axvline(x=undeg["llm_score"].mean(), color="red", linestyle="--", linewidth=2, label=f"Mean={undeg['llm_score'].mean():.1f}")
 ax.legend(fontsize=11)
 fig.tight_layout()
-fig.savefig(out / "undegraded_distribution.png", dpi=200)
+fig.savefig(out / "undegraded_distribution.svg")
 plt.close(fig)
-print("  [7/8] undegraded_distribution.png")
+print("  [7/8] undegraded_distribution.svg")
 
 
 # =====================================================================
@@ -259,9 +261,9 @@ ax.set_xlabel("Slope (score change per unit degradation)", fontsize=12)
 ax.set_title("Axis Sensitivity: How Much Does Score Drop?", fontsize=14, fontweight="bold")
 ax.axvline(x=0, color="black", linewidth=0.8)
 fig.tight_layout()
-fig.savefig(out / "axis_sensitivity_slopes.png", dpi=200)
+fig.savefig(out / "axis_sensitivity_slopes.svg")
 plt.close(fig)
-print("  [8/8] axis_sensitivity_slopes.png")
+print("  [8/8] axis_sensitivity_slopes.svg")
 
 
 # =====================================================================
@@ -288,9 +290,9 @@ for i, axis in enumerate(["grammar", "coherence", "information", "lexical"]):
 
 fig.suptitle("Score Distribution Per Axis: GPT-5 mini", fontsize=16, fontweight="bold", y=1.02)
 fig.tight_layout()
-fig.savefig(out / "distribution_per_axis.png", dpi=200, bbox_inches="tight")
+fig.savefig(out / "distribution_per_axis.svg", bbox_inches="tight")
 plt.close(fig)
-print("  [9/9] distribution_per_axis.png")
+print("  [9/9] distribution_per_axis.svg")
 
 
 # =====================================================================

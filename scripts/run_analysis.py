@@ -37,6 +37,10 @@ from scipy import stats as sp_stats
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+from analysis import build_sample_metadata
+
 # ── Paths ───────────────────────────────────────────────────────
 ROOT = Path(__file__).resolve().parent.parent
 FIG_DIR = ROOT / "output" / "figures"
@@ -69,19 +73,11 @@ RESULTS = {}  # collect all test results
 
 def load_data():
     """Build unified + paired DataFrames from all score JSON files under data/scores/."""
+    meta = build_sample_metadata(ROOT)
     samples = json.load(open(ROOT / "data/degraded/degraded_samples.json",
                              encoding="utf-8"))
-
-    meta = {}
     for s in samples:
-        meta[s["id"]] = {
-            "article": s["source_title"],
-            "category": s.get("category", "unknown"),
-            "axis": s["axis"],
-            "level": s["level"],
-            "rep": s["repetition"],
-            "article_length": len(s["original_text"]),
-        }
+        meta[s["id"]]["rep"] = s["repetition"]
 
     # Discover all score files and group by model name (inferred from records)
     scores_dir = ROOT / "data" / "scores"
@@ -224,8 +220,11 @@ def block_bootstrap_means(df_sub, n_boot=10000, seed=42):
 def savefig(fig, name):
     path = FIG_DIR / name
     fig.savefig(path)
+    # Also save as SVG
+    svg_path = path.with_suffix('.svg')
+    fig.savefig(svg_path)
     plt.close(fig)
-    print(f"  → Saved {path.relative_to(ROOT)}")
+    print(f"  → Saved {path.relative_to(ROOT)} and {svg_path.relative_to(ROOT)}")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1061,10 +1060,12 @@ def graph_g3(df):
         s = df[df["model"] == model]["score"]
         counts = s.value_counts().reindex(range(11), fill_value=0)
         bars = ax.bar(range(11), counts, color=COLORS[model], edgecolor="white", alpha=0.85)
-        # Annotate dead zones
-        for val in [0, 10]:
+        # Annotate every empty score bin so all dead zones are visible.
+        zero_label_heights = [0.06, 0.11, 0.16]
+        for val in range(11):
             if counts[val] == 0:
-                ax.annotate(f"0", xy=(val, 0), xytext=(val, counts.max() * 0.1),
+                text_height = counts.max() * zero_label_heights[val % len(zero_label_heights)]
+                ax.annotate("0", xy=(val, 0), xytext=(val, text_height),
                             ha="center", fontsize=9, color="red",
                             arrowprops=dict(arrowstyle="->", color="red"))
         ax.set_title(model, fontweight="bold")
@@ -1130,7 +1131,7 @@ def graph_g6(df):
     """G6: Boxplots axis × level grid."""
     header("G6: Boxplots (axis × level)")
     _n = len(MODEL_NAMES)
-    fig, axes = plt.subplots(_n, 4, figsize=(16, 4 * _n), sharey=True, squeeze=False)
+    fig, axes = plt.subplots(_n, 4, figsize=(15, 1.5 * _n), sharey=True, squeeze=False)
     for row, model in enumerate(MODEL_NAMES):
         for col, axis in enumerate(AXES_ORDER):
             ax = axes[row, col]
@@ -1332,9 +1333,9 @@ def graph_g12(df):
     """G12: Rep consistency heatmap (mean CV)."""
     header("G12: Rep consistency heatmap")
     _n = len(MODEL_NAMES)
-    _ncols = min(_n, 3)
+    _ncols = min(_n, 4)
     _nrows = math.ceil(_n / _ncols)
-    fig, _axes_arr = plt.subplots(_nrows, _ncols, figsize=(7 * _ncols, 5 * _nrows), squeeze=False)
+    fig, _axes_arr = plt.subplots(_nrows, _ncols, figsize=(6 * _ncols, 4 * _nrows), squeeze=False)
     _axes_flat = [_axes_arr[r][c] for r in range(_nrows) for c in range(_ncols)]
     for _unused_j in range(_n, _nrows * _ncols):
         _axes_flat[_unused_j].set_visible(False)
@@ -1410,15 +1411,24 @@ def graph_g14(df):
     """G14: Residuals vs fitted + Q-Q plot."""
     header("G14: Residuals vs fitted")
     _n = len(MODEL_NAMES)
-    fig, axes = plt.subplots(_n, 2, figsize=(12, 5 * _n), squeeze=False)
+    _ncols = 4
+    _nrows = math.ceil(_n / _ncols)
+    fig, axes = plt.subplots(_nrows * 2, _ncols, figsize=(6 * _ncols, 5 * _nrows), squeeze=False)
+    for _unused_i in range(_nrows * 2):
+        for _unused_j in range(_ncols):
+            idx = (_unused_i // 2) * _ncols + _unused_j
+            if idx >= _n:
+                axes[_unused_i, _unused_j].set_visible(False)
     for j, model in enumerate(MODEL_NAMES):
+        row_base = (j // _ncols) * 2
+        col = j % _ncols
         sub = df[df["model"] == model]
         r = sp_stats.linregress(sub["level"], sub["score"])
         fitted = r.intercept + r.slope * sub["level"].values
         residuals = sub["score"].values - fitted
 
         # Residuals vs fitted
-        ax = axes[j, 0]
+        ax = axes[row_base, col]
         ax.scatter(fitted, residuals, s=1, alpha=0.1, color=COLORS[model], rasterized=True)
         # LOWESS
         try:
@@ -1435,7 +1445,7 @@ def graph_g14(df):
         ax.grid(True, alpha=0.3)
 
         # Q-Q plot
-        ax = axes[j, 1]
+        ax = axes[row_base + 1, col]
         sp_stats.probplot(residuals, dist="norm", plot=ax)
         ax.set_title(f"{model} — Q-Q Plot", fontweight="bold")
         ax.grid(True, alpha=0.3)

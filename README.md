@@ -177,7 +177,7 @@ Even among expert-authored articles from a single platform, LLMs exhibit domain-
 
 ### Calibration Recovery
 
-Can the bias be corrected? A simple two-parameter affine transform reduces RMSE by **12–27%** — but a residual error of ~1.6–1.9 points persists even with the best possible monotonic calibration (isotonic regression).
+Can the bias be corrected? A simple two-parameter affine transform reduces RMSE by **10–25%** — but a residual error of ~1.7–1.9 points persists even with the best possible monotonic calibration (isotonic regression).
 
 <p align="center">
   <img src="output/figures/G15_calibration_recovery.png" alt="Calibration recovery" width="100%"/>
@@ -186,12 +186,12 @@ Can the bias be corrected? A simple two-parameter affine transform reduces RMSE 
 
 | Model | Calibration | RMSE | ΔRMSE |
 |---|---|:---:|:---:|
-| GPT-5 mini | Raw | 2.56 | — |
-| | Affine | 1.87 | −27% |
-| | Isotonic | 1.87 | −27% |
-| Gemini 3 Flash | Raw | 1.82 | — |
-| | Affine | 1.60 | −12% |
-| | Isotonic | 1.59 | −13% |
+| GPT-5 mini | Raw | 2.51 | — |
+| | Affine | 1.88 | −25% |
+| | Isotonic | 1.85 | −26% |
+| Gemini 3 Flash | Raw | 1.94 | — |
+| | Affine | 1.74 | −10% |
+| | Isotonic | 1.73 | −11% |
 
 **Dual takeaway:** (1) A cheap affine fix recovers meaningful accuracy. (2) The models genuinely lose discriminative information that no rescaling can recover.
 

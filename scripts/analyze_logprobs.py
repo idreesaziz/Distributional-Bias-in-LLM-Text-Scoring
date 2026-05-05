@@ -92,6 +92,8 @@ def extract_logprob_features(df: pd.DataFrame) -> pd.DataFrame:
             "axis": r["axis"],
             "level": r["level"],
             "article": r["article"],
+            "article_id": r.get("article_id", r["article"]),
+            "article_title": r.get("article_title"),
             "category": r["category"],
             "score": r["score"],
             "entropy": entropy,

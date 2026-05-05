@@ -17,6 +17,7 @@ from scipy.optimize import curve_fit
 from scipy.stats import kendalltau, spearmanr
 from sklearn.isotonic import IsotonicRegression
 from pathlib import Path
+import sys
 
 # ── Paths ──────────────────────────────────────────────────────
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,6 +27,10 @@ GEMINI_SCORES_PATH = ROOT / "data" / "scores" / "llm_scores_gemini.json"
 FIG_PATH = ROOT / "output" / "figures" / "G15_calibration_recovery.png"
 RESULTS_PATH = ROOT / "output" / "analysis" / "calibration_results.json"
 
+sys.path.insert(0, str(ROOT / "src"))
+
+from analysis import build_sample_metadata
+
 # ── Load data ──────────────────────────────────────────────────
 samples = json.loads(SAMPLES_PATH.read_text(encoding="utf-8"))
 gpt_scores = json.loads(GPT_SCORES_PATH.read_text(encoding="utf-8"))
@@ -33,7 +38,8 @@ gemini_scores = json.loads(GEMINI_SCORES_PATH.read_text(encoding="utf-8"))
 
 # Build arrays: for each sample, get title, axis, level, gpt_score, gemini_score
 n = len(samples)
-titles = [s["source_title"] for s in samples]
+meta = build_sample_metadata(ROOT)
+article_ids = np.array([meta[i]["article_id"] for i in range(n)])
 levels = np.array([s["level"] for s in samples])
 axes = [s["axis"] for s in samples]
 gpt = np.array([gpt_scores[i]["score"] for i in range(n)])
@@ -43,17 +49,17 @@ gem = np.array([gemini_scores[i]["score"] for i in range(n)])
 ideal = 10.0 * (1.0 - levels)
 
 # ── Train/test split by article (80/20) ───────────────────────
-unique_titles = sorted(set(titles))
+unique_article_ids = sorted(set(article_ids.tolist()))
 rng = np.random.RandomState(42)
-rng.shuffle(unique_titles)
-split = int(0.8 * len(unique_titles))
-train_titles = set(unique_titles[:split])
-test_titles = set(unique_titles[split:])
+rng.shuffle(unique_article_ids)
+split = int(0.8 * len(unique_article_ids))
+train_articles = set(unique_article_ids[:split])
+test_articles = set(unique_article_ids[split:])
 
-train_mask = np.array([t in train_titles for t in titles])
+train_mask = np.array([article_id in train_articles for article_id in article_ids])
 test_mask = ~train_mask
 
-print(f"Train articles: {len(train_titles)}, Test articles: {len(test_titles)}")
+print(f"Train articles: {len(train_articles)}, Test articles: {len(test_articles)}")
 print(f"Train samples: {train_mask.sum()}, Test samples: {test_mask.sum()}")
 
 
@@ -226,6 +232,8 @@ plt.tight_layout(rect=[0, 0, 1, 0.95])
 
 FIG_PATH.parent.mkdir(parents=True, exist_ok=True)
 fig.savefig(FIG_PATH, dpi=200, bbox_inches="tight")
+# Also save as SVG
+fig.savefig(FIG_PATH.with_suffix('.svg'), dpi=200, bbox_inches="tight")
 plt.close()
 print(f"\nFigure saved to {FIG_PATH}")
 

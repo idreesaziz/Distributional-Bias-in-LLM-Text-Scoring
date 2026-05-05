@@ -12,7 +12,7 @@ Feature sets:
 
 Models: Ridge, XGBoost  →  up to 8 fitted models per LLM.
 
-Uses GroupKFold (group = article) to prevent text leakage.
+Uses GroupKFold (group = stable article id) to prevent text leakage.
 SHAP values for best-performing model.
 
 Outputs:
@@ -113,7 +113,8 @@ def main():
         levels = sub["level"].values
         raw_scores = sub["score"].values.astype(float)
         target = proxy_ground_truth(levels)
-        groups = sub["article"].values
+        group_col = "article_id" if "article_id" in sub.columns else "article"
+        groups = sub[group_col].values
 
         # Raw baseline
         m_raw = eval_scores(raw_scores, levels)

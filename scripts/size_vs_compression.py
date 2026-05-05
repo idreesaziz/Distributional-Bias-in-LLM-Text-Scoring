@@ -38,6 +38,10 @@ ANALYSIS_DIR = ROOT / "output" / "analysis"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
 
+sys.path.insert(0, str(ROOT / "src"))
+
+from analysis import build_sample_metadata
+
 # ── Known model sizes (billions of parameters) ─────────────────
 # Sources: config_laptop_mine.yaml, config_laptop_friend.yaml,
 #          and public model cards for API models.
@@ -76,15 +80,7 @@ plt.rcParams.update({
 
 def load_scores():
     """Load all score JSONs and build a unified DataFrame."""
-    samples = json.load(open(ROOT / "data/degraded/degraded_samples.json",
-                             encoding="utf-8"))
-    meta = {}
-    for s in samples:
-        meta[s["id"]] = {
-            "article": s["source_title"],
-            "axis": s["axis"],
-            "level": s["level"],
-        }
+    meta = build_sample_metadata(ROOT)
 
     scores_dir = ROOT / "data" / "scores"
     rows = []
@@ -234,6 +230,8 @@ def fig_scatter(metrics):
     fig.tight_layout()
     path = FIG_DIR / "size_compression_scatter.png"
     fig.savefig(path)
+    # Also save as SVG
+    fig.savefig(path.with_suffix('.svg'))
     plt.close(fig)
     print(f"  → Saved {path.relative_to(ROOT)}")
 
@@ -279,6 +277,8 @@ def fig_multiaxis(metrics):
     fig.tight_layout()
     path = FIG_DIR / "size_compression_multiaxis.png"
     fig.savefig(path)
+    # Also save as SVG
+    fig.savefig(path.with_suffix('.svg'))
     plt.close(fig)
     print(f"  → Saved {path.relative_to(ROOT)}")
 
@@ -331,6 +331,8 @@ def fig_table(metrics):
     fig.tight_layout()
     path = FIG_DIR / "size_compression_table.png"
     fig.savefig(path)
+    # Also save as SVG
+    fig.savefig(path.with_suffix('.svg'))
     plt.close(fig)
     print(f"  → Saved {path.relative_to(ROOT)}")
 

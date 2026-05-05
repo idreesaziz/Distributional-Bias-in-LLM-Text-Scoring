@@ -21,16 +21,70 @@ from scipy import stats
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 
+def infer_samples_per_article(samples: list[dict]) -> int:
+    """Infer how many degraded samples belong to each corpus row."""
+    axes = {s["axis"] for s in samples}
+    levels = {s["level"] for s in samples}
+    repetitions = {s.get("repetition", 0) for s in samples}
+    return len(axes) * len(levels) * len(repetitions)
+
+
+def build_sample_metadata(root: Path) -> dict[int, dict]:
+    """Build per-sample metadata with a stable article id.
+
+    Historical datasets keyed article identity by title, but the corpus contains
+    duplicate title rows. We instead recover article identity from the degraded
+    sample ordering, which is article-major with a fixed number of samples per
+    corpus row.
+    """
+    samples = json.loads((root / "data/degraded/degraded_samples.json")
+                         .read_text(encoding="utf-8"))
+    corpus_path = root / "data/corpus/corpus.json"
+    corpus = json.loads(corpus_path.read_text(encoding="utf-8")) if corpus_path.exists() else []
+    samples_per_article = infer_samples_per_article(samples)
+
+    meta = {}
+    for s in samples:
+        article_id = s.get("source_article_id")
+        if article_id is None:
+            article_id = int(s["id"]) // samples_per_article
+
+        corpus_row = corpus[article_id] if 0 <= article_id < len(corpus) else {}
+        source_title = s.get("source_title") or corpus_row.get("title")
+        category = s.get("category") or corpus_row.get("cat_label") or corpus_row.get("category") or "unknown"
+        source_url = s.get("source_url") or corpus_row.get("url")
+        original_text = s.get("original_text") or corpus_row.get("body_text") or corpus_row.get("text") or ""
+
+        meta[int(s["id"])] = {
+            "article": int(article_id),
+            "article_id": int(article_id),
+            "article_title": source_title,
+            "category": category,
+            "axis": s["axis"],
+            "level": s["level"],
+            "source_url": source_url,
+            "article_length": len(original_text),
+        }
+    return meta
+
+
 # ── Data Assembly ────────────────────────────────────────────────
 
 def build_dataframe(scored_samples: list[dict],
                     llm_results: list[dict]) -> pd.DataFrame:
     """Merge quality scores with LLM ratings into a single DataFrame."""
 
+    samples_per_article = infer_samples_per_article(scored_samples)
+
     # Build sample lookup
     sample_lookup = {}
     for s in scored_samples:
+        article_id = s.get("source_article_id")
+        if article_id is None:
+            article_id = int(s["id"]) // samples_per_article
         sample_lookup[s["id"]] = {
+            "article": int(article_id),
+            "article_id": int(article_id),
             "source_title": s["source_title"],
             "axis": s["axis"],
             "level": s["level"],
@@ -391,16 +445,7 @@ def load_scores(root: Path) -> pd.DataFrame:
     Columns returned: sample_id, model, condition, score, axis, level,
                       article, category, score_probs (dict or None).
     """
-    samples = json.loads((root / "data/degraded/degraded_samples.json")
-                         .read_text(encoding="utf-8"))
-    meta = {}
-    for s in samples:
-        meta[s["id"]] = {
-            "article": s["source_title"],
-            "category": s.get("category", "unknown"),
-            "axis": s["axis"],
-            "level": s["level"],
-        }
+    meta = build_sample_metadata(root)
 
     scores_dir = root / "data" / "scores"
     rows = []
@@ -421,6 +466,8 @@ def load_scores(root: Path) -> pd.DataFrame:
                 "axis": m["axis"],
                 "level": m["level"],
                 "article": m["article"],
+                "article_id": m["article_id"],
+                "article_title": m["article_title"],
                 "category": m["category"],
                 "score_probs": r.get("score_probs"),
             })
