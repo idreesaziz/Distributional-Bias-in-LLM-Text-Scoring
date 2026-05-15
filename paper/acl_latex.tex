@@ -81,7 +81,7 @@ largest pairwise-accuracy gain ($0.518 \to 0.702$), expected-score
 rescaling improves rank correlation ($\rho\colon 0.458 \to 0.490$),
 quantile normalization restores the full scale while preserving rank
 order, and contrastive anchor prompting is mixed. Post-hoc affine
-calibration reduces RMSE by 10--26\%, confirming a systematic,
+calibration reduces RMSE by 10--25\%, confirming a systematic,
 partially correctable distortion with direct implications for any use
 of LLM-generated quality ratings.
 \end{abstract}
@@ -184,7 +184,7 @@ architectures, and scales (Appendix~Table~\ref{tab:models}); (iii) axis-specific
 sensitivity profiles revealing systematic insensitivity to
 coherence-level degradation~\citep{barzilay2008modeling,lapata2005automatic}
 (Appendix~Figure~\ref{fig:forest}); (iv) a calibration recovery experiment in
-which a simple affine transform reduces the gap by 10--26\%
+which a simple affine transform reduces the gap by 10--25\%
 (Section~\ref{sec:calibration}); and (v) a five-strategy mitigation
 study showing that post-hoc corrections partially recover lost
 range (Section~\ref{sec:mitigation}).
