@@ -6,7 +6,7 @@
 
 *Idrees Aziz · Mahir Sadikhov*
 
-[![Paper](https://img.shields.io/badge/Paper-LaTeX-blue)](paper/paper.tex)
+[![Paper](https://img.shields.io/badge/Paper-LaTeX-blue)](paper/acl_latex.tex)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-yellow)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](#license)
 
@@ -320,8 +320,7 @@ No rubric, examples, or reference texts — measuring intrinsic calibration only
 ├── config.yaml                        # Experiment configuration
 ├── requirements.txt                   # Python dependencies
 ├── paper/
-│   ├── paper.tex                      # Full manuscript (LaTeX)
-│   ├── acl_latex.tex                  # ACL-format version
+│   ├── acl_latex.tex                  # Full manuscript (LaTeX, ACL format)
 │   └── figures/                       # Paper-specific figures
 ├── src/
 │   ├── main.py                        # Pipeline orchestrator
