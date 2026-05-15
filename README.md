@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](#license)
 
 **When large language models rate text quality on a 0–10 scale, they never give a 0 or a 10.**
-**Not once across 18,000 evaluations.**
+**Confirmed across 11 models and ~99,000 evaluations.**
 
 </div>
 
@@ -22,11 +22,11 @@
 LLMs systematically compress their scores into a narrow interior band, regardless of true quality variation. Expert-authored, editorially curated articles top out at 8–9. Heavily corrupted, barely readable text bottoms out at 2–3. The full scale is never used.
 
 <p align="center">
-  <img src="output/figures/G3_score_histograms.png" alt="Score distributions for both models" width="100%"/>
+  <img src="output/figures/G3_score_histograms.png" alt="Score distributions for all eleven models" width="100%"/>
 </p>
-<p align="center"><em>Overall score distributions (n = 9,000 per model). Red arrows mark scores of 0 and 10 — never assigned by either model.</em></p>
+<p align="center"><em>Overall score distributions (~9,000 per model) across all eleven models. Red annotations mark score bins with zero counts. Six of eleven models never assign 0 or 10.</em></p>
 
-We call this **score compression**: the effective scoring range shrinks to **62–69%** of ideal, confirmed across two frontier models from different providers.
+We call this **score compression**: the effective scoring range shrinks to **62–69%** of ideal in the two primary models, with compression confirmed universally across all eleven models studied.
 
 | | GPT-5 mini | Gemini 3 Flash |
 |---|:---:|:---:|
@@ -53,6 +53,8 @@ We call this **score compression**: the effective scoring range shrinks to **62�
   - [Category Effects](#category-effects)
   - [Calibration Recovery](#calibration-recovery)
   - [Residual Diagnostics](#residual-diagnostics)
+- [Multi-Model Extension](#multi-model-extension)
+- [Mitigation Strategies](#mitigation-strategies)
 - [Experimental Design](#experimental-design)
 - [Degradation Engine](#degradation-engine)
 - [Scoring Protocol](#scoring-protocol)
@@ -204,9 +206,59 @@ Can the bias be corrected? A simple two-parameter affine transform reduces RMSE 
 
 ---
 
+## Multi-Model Extension
+
+To assess whether score compression generalizes, we replicate the scoring protocol across nine additional models (3.8B–228B parameters). Compression ratios range from **0.02** (Mistral 7B) to **0.69** (GPT-5 mini), and there is a positive correlation between log parameter count and compression ratio (Pearson *r* = 0.78, *p* = 0.012). Smaller models exhibit more extreme compression — but the trend is noisy and non-monotonic, suggesting architecture and RLHF matter as much as scale.
+
+| Model | Provider | Params | Range | CR |
+|---|---|:---:|:---:|:---:|
+| GPT-5 mini | OpenAI | — | 1–9 | 0.685 |
+| Gemini 3 Flash | Google | — | 2–9 | 0.621 |
+| GPT-OSS 120B | Fireworks | 120B | 0–9 | — |
+| MiniMax M2P1 | Fireworks | 228B | 0–10 | 0.42 |
+| Qwen 2.5 14B | Local | 14B | 2–8 | 0.45 |
+| Phi-4 14B | Local | 14B | 3–8 | — |
+| Gemma 2 9B | Local | 9B | 3–9 | 0.30 |
+| Llama 3.1 8B | Local | 8B | 2–9 | — |
+| Qwen 2.5 7B | Local | 7B | — | — |
+| Phi-4 mini | Local | 3.8B | 0–10 | — |
+| Mistral 7B | Local | 7B | — | 0.026 |
+
+Full compression statistics for all eleven models are reported in the paper (Table 2).
+
+---
+
+## Mitigation Strategies
+
+We evaluate five mitigation strategies against score compression. Four are post-hoc corrections; one modifies the prompt itself.
+
+| Method | Requires logprobs | Spearman ρ | Δρ | CR | Pairwise Acc. |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Raw (baseline) | No | 0.458 | — | 0.689 | 0.518 |
+| Quantile (uniform) | No | 0.458 | 0.000 | **0.922** | 0.518 |
+| Quantile (Beta) | No | 0.458 | 0.000 | 0.847 | 0.518 |
+| Expected score E[S] | Yes | 0.490 | +0.032 | 0.579 | 0.649 |
+| Auxiliary regression | Yes | **0.496** | **+0.038** | 0.919 | **0.702** |
+
+*Evaluated on the nine logprob models (GPT-OSS 120B + eight local models).*
+
+<p align="center">
+  <img src="output/mitigations/figures/spearman_rho_barplot.png" alt="Per-model Spearman rho by method" width="100%"/>
+</p>
+<p align="center"><em>Spearman ρ against proxy ground truth for each model and mitigation method. Logprob-based methods are available only for the nine models with logprob access.</em></p>
+
+**Key findings:**
+- **Quantile normalization** expands the compression ratio from 0.69 to 0.92 while preserving rank order exactly — the cheapest fix for distributional shape.
+- **Expected-score rescaling** (replacing argmax with the probability-weighted mean) improves pairwise accuracy from 0.518 to 0.649 using information argmax discards.
+- **Auxiliary regression** yields the best pairwise accuracy (0.702) but requires supervised training on proxy ground truth.
+- **Contrastive anchor prompting** (prompt-level intervention) produced mixed results: Gemini improved (Δρ = +0.035), GPT degraded (Δρ = −0.110).
+- The largest rank-correlation improvement across all methods is +0.038 — the models' quality rankings are largely baked in and cannot be substantially changed post hoc.
+
+---
+
 ## Experimental Design
 
-**150 articles × 4 axes × 5 levels × 3 repetitions = 9,000 samples per model**
+**150 articles × 4 axes × 5 levels × 3 repetitions = 9,000 samples per model (~99,000 total)**
 
 | Component | Detail |
 |---|---|
@@ -214,7 +266,8 @@ Can the bias be corrected? A simple two-parameter affine transform reduces RMSE 
 | **Degradation axes** | Grammar, Coherence, Information, Lexical — each applied in isolation |
 | **Intensity levels** | λ ∈ {0.0, 0.2, 0.4, 0.6, 0.8} — capped at 0.8 to keep texts parseable |
 | **Repetitions** | 3 per condition for reliability estimation |
-| **Models** | GPT-5 mini (OpenAI, T=1.0) and Gemini 3 Flash (Google, T=0.0) |
+| **Primary models** | GPT-5 mini (OpenAI, T=1.0) and Gemini 3 Flash (Google, T=0.0) |
+| **Extension models** | 9 additional models, 3.8B–228B parameters, all at T=0.0 with logprobs |
 | **Prompt** | Minimal: *"Rate the quality of the following text from 0 to 10. Respond with ONLY the number."* |
 
 Each sample is degraded along exactly **one** axis, isolating quality dimensions so scoring biases can be attributed to specific aspects rather than confounded combinations.
@@ -232,13 +285,7 @@ The degradation engine ([`src/degradation.py`](src/degradation.py)) corrupts cle
 | **Information** | 5-phase deletion pipeline: parentheticals → modifiers → prepositional phrases → subordinate clauses → content words | Grammar, sentence structure |
 | **Lexical** | GloVe-based synonym replacement, collapsing diverse vocabulary to common alternatives with morphological transfer | Meaning, grammar, information |
 
-All randomness is deterministic via MD5-seeded RNG:
-
-```
-seed = MD5(title ∥ axis ∥ level ∥ rep) mod 2³¹
-```
-
-A fresh `random.Random(seed)` per sample ensures bitwise-identical results across machines, OSes, and Python versions.
+Seed per sample: `MD5(title ∥ axis ∥ level ∥ rep) mod 2³¹` — bitwise-identical results across machines, OSes, and Python versions.
 
 ---
 
@@ -251,41 +298,65 @@ Each sample is scored in isolation with a minimal, unanchored prompt:
 
 No rubric, examples, or reference texts — measuring intrinsic calibration only.
 
-| Model | Provider | Temperature | Notes |
-|---|---|:---:|---|
-| GPT-5 mini | OpenAI | 1.0 | Reasoning model; T=1.0 is the only supported value |
-| Gemini 3 Flash | Google | 0.0 | Minimal thinking; deterministic decoding |
+| Model | Provider | Params | Access | Temperature | Logprobs |
+|---|---|:---:|---|:---:|:---:|
+| GPT-5 mini | OpenAI | — | API | 1.0 | No |
+| Gemini 3 Flash | Google | — | API | 0.0 | No |
+| GPT-OSS 120B | Fireworks | 120B | API | 0.0 | Yes |
+| MiniMax M2P1 | Fireworks | 228B | API | 0.0 | Yes |
+| Gemma 2 9B | Local (Ollama) | 9B | Local | 0.0 | Yes |
+| Llama 3.1 8B | Local (Ollama) | 8B | Local | 0.0 | Yes |
+| Mistral 7B | Local (Ollama) | 7B | Local | 0.0 | Yes |
+| Phi-4 14B | Local (Ollama) | 14B | Local | 0.0 | Yes |
+| Phi-4 mini | Local (Ollama) | 3.8B | Local | 0.0 | Yes |
+| Qwen 2.5 14B | Local (Ollama) | 14B | Local | 0.0 | Yes |
+| Qwen 2.5 7B | Local (Ollama) | 7B | Local | 0.0 | Yes |
 
 ---
 
 ## Repository Structure
 
 ```
-├── config.yaml                  # Experiment configuration
-├── requirements.txt             # Python dependencies
+├── config.yaml                        # Experiment configuration
+├── requirements.txt                   # Python dependencies
 ├── paper/
-│   └── paper.tex                # Full LaTeX manuscript
+│   ├── paper.tex                      # Full manuscript (LaTeX)
+│   ├── acl_latex.tex                  # ACL-format version
+│   └── figures/                       # Paper-specific figures
 ├── src/
-│   ├── main.py                  # Pipeline orchestrator
-│   ├── corpus.py                # Article fetcher
-│   ├── degradation.py           # Four-axis degradation engine
-│   ├── quality.py               # Objective quality function
-│   ├── llm_scoring.py           # LLM scoring with checkpointing
-│   └── analysis.py              # Statistical analysis & figures
+│   ├── main.py                        # Pipeline orchestrator
+│   ├── corpus.py                      # Article fetcher
+│   ├── degradation.py                 # Four-axis degradation engine
+│   ├── quality.py                     # Objective quality function
+│   ├── llm_scoring.py                 # LLM scoring with checkpointing
+│   └── analysis.py                    # Statistical analysis
 ├── scripts/
-│   ├── generate_graphs.py       # Standalone figure generation
-│   ├── run_analysis.py          # Full analysis pipeline
-│   ├── calibration_recovery.py  # Calibration experiment
-│   └── sanity_check.py          # Quick degradation checks
+│   ├── run_analysis.py                # Full analysis pipeline
+│   ├── generate_graphs.py             # Standalone figure generation
+│   ├── calibration_recovery.py        # Calibration experiment
+│   ├── analyze_logprobs.py            # Logprob feature extraction
+│   ├── size_vs_compression.py         # Model size vs. CR analysis
+│   ├── mitigate_quantile.py           # Quantile normalization
+│   ├── mitigate_logprob_rescaling.py  # Expected-score rescaling
+│   ├── mitigate_aux_regressor.py      # Auxiliary regression
+│   ├── mitigate_contrastive.py        # Contrastive anchor prompting
+│   ├── compare_mitigations.py         # Mitigation comparison pipeline
+│   └── sanity_check.py                # Quick degradation checks
 ├── data/
-│   ├── corpus/                  # 150 article texts (regenerate via pipeline)
-│   ├── degraded/                # 9,000 degraded samples
-│   └── scores/                  # Raw LLM scores (committed)
-│       ├── gpt5_mini_scores.json
-│       └── llm_scores_gemini.json
+│   ├── corpus/                        # 150 article texts
+│   ├── degraded/                      # 9,000 degraded samples
+│   └── scores/                        # Raw LLM scores per model
+│       ├── gemma2-9b_scores.json
+│       ├── llama3.1-8b_scores.json
+│       ├── mistral-7b_scores.json
+│       ├── phi4-mini_scores.json
+│       └── qwen2.5-7b_scores.json
 └── output/
-    ├── analysis/                # Statistical results (JSON/CSV)
-    └── figures/                 # All 15 generated figures
+    ├── analysis/                      # Statistical results (JSON/CSV)
+    ├── figures/                       # Main paper figures (G1–G15)
+    └── mitigations/
+        ├── figures/                   # Mitigation analysis figures
+        └── results/                   # Mitigation result CSVs
 ```
 
 ---
@@ -320,8 +391,17 @@ python -m src.main --step degrade     # Generate degraded samples
 python -m src.main --step llm         # Score with LLMs
 python -m src.main --step analysis    # Generate figures
 
-# Standalone graph generation (from existing data)
+# Standalone analysis and figures
 python scripts/generate_graphs.py
+python scripts/run_analysis.py
+
+# Mitigation experiments
+python scripts/analyze_logprobs.py         # Extract logprob features
+python scripts/mitigate_quantile.py        # Quantile normalization
+python scripts/mitigate_logprob_rescaling.py  # Expected-score rescaling
+python scripts/mitigate_aux_regressor.py   # Auxiliary regression
+python scripts/mitigate_contrastive.py     # Contrastive prompting
+python scripts/compare_mitigations.py      # Full mitigation comparison
 ```
 
 ---
