@@ -18,11 +18,14 @@ data/scores/*.jsonl
 output/mitigations/intermediate/
 
 # LaTeX build artifacts
-paper/*.aux
-paper/*.log
-paper/*.out
-paper/*.synctex*
+*.aux
+*.log
+*.out
+*.synctex*
 paper/*.pdf
+
+# Laptop-specific configs
+config_laptop_*.yaml
 
 # Debug / temp scripts
 scripts/_*.py
