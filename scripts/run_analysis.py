@@ -220,11 +220,8 @@ def block_bootstrap_means(df_sub, n_boot=10000, seed=42):
 def savefig(fig, name):
     path = FIG_DIR / name
     fig.savefig(path)
-    # Also save as SVG
-    svg_path = path.with_suffix('.svg')
-    fig.savefig(svg_path)
     plt.close(fig)
-    print(f"  → Saved {path.relative_to(ROOT)} and {svg_path.relative_to(ROOT)}")
+    print(f"  → Saved {path.relative_to(ROOT)}")
 
 
 # ═══════════════════════════════════════════════════════════════

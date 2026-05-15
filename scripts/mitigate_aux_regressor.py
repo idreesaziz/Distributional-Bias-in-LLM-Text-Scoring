@@ -293,9 +293,9 @@ def _plot_shap(best_models: dict):
 
     fig.suptitle("SHAP Feature Importance (Best Auxiliary Regressor)", fontsize=13, y=1.01)
     fig.tight_layout()
-    fig.savefig(FIG_DIR / "aux_shap_summary.png", dpi=300, bbox_inches="tight")
+    fig.savefig(FIG_DIR / "aux_shap_summary.svg", format="svg", bbox_inches="tight")
     plt.close(fig)
-    print(f"  Saved → {FIG_DIR / 'aux_shap_summary.png'}")
+    print(f"  Saved → {FIG_DIR / 'aux_shap_summary.svg'}")
 
 
 def _plot_cv_comparison(all_results: list[dict]):
@@ -331,9 +331,9 @@ def _plot_cv_comparison(all_results: list[dict]):
     ax.set_ylabel("RMSE vs Proxy GT")
     ax.set_title("Auxiliary Regressor CV Performance", fontsize=13)
     fig.tight_layout()
-    fig.savefig(FIG_DIR / "aux_cv_comparison.png", dpi=300, bbox_inches="tight")
+    fig.savefig(FIG_DIR / "aux_cv_comparison.svg", format="svg", bbox_inches="tight")
     plt.close(fig)
-    print(f"  Saved → {FIG_DIR / 'aux_cv_comparison.png'}")
+    print(f"  Saved → {FIG_DIR / 'aux_cv_comparison.svg'}")
 
 
 if __name__ == "__main__":

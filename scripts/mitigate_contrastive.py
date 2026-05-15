@@ -332,9 +332,9 @@ def main():
 
     fig.suptitle("Contrastive Prompting: Score Deltas", fontsize=14, y=1.02)
     fig.tight_layout()
-    fig.savefig(FIG_DIR / "contrastive_delta_hist.png", dpi=300, bbox_inches="tight")
+    fig.savefig(FIG_DIR / "contrastive_delta_hist.svg", format="svg", bbox_inches="tight")
     plt.close(fig)
-    print(f"  Saved → {FIG_DIR / 'contrastive_delta_hist.png'}")
+    print(f"  Saved → {FIG_DIR / 'contrastive_delta_hist.svg'}")
 
     print("\nDone.")
 
